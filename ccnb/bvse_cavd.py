@@ -16,14 +16,15 @@ from ccnb.mergecluster import Void, Channel
 
 class MigrationPath(object):
     """
-    用来计算两个间隙点之间的近似最小能量路径，以及路径上每点的能量、瓶颈点的能量、迁移能垒
+    Calculate the  minimum energy path between endpoints, as well as the energy of each image on
+    the path, the energy of bottleneck site and the migration energy barrier
     """
     def __init__(self, endpoints, phases, energy, struc, countimages=11):
         """
-        :param endpoints: 迁移路径端点坐标，类型为两维列表
-        :param phase: 路径的周期位移矢量，类型为两维列表
-        :param energy: BVSE势函数，类型为三维数组
-        :param struc: 结构，类型为pymatgen structure对象
+        :param endpoints: two-dimensional array,migration path endpoint coordinates
+        :param phase: two-dimensional array.Periodic displacement vector of path
+        :param energy: three-dimensional array.Bvse potential
+        :param struc: pymatgen structure object
         """
         self._energy = energy
         self._struc = struc
@@ -42,49 +43,51 @@ class MigrationPath(object):
     @property
     def path(self):
         """
-        :return: 返回路径上各点的坐标
+        Return the coordinates of each image on the MEP
         """
         return self._path
 
     @property
     def path_energy(self):
         """
-        :return: 返回路径上各点的能量，类型为两维列表，第一列表示各点的距离，第二列表示各点的能量
+        Return the energy of each image on the MEP. The type is a two-dimensional array.
+        The first column represents the distance of each image, and the second column represents
+        the energy of each image
         """
         return self._path_energy
 
     @property
     def energy_max(self):
         """
-        :return: 返回瓶颈点的能量
+        :return: BVSE energy of bottleneck site
         """
         return self._max_energy
 
     @property
     def position_max(self):
         """
-        :return: 返回瓶颈点的能量
+        :return: the coordinate of  bottleneck site
         """
         return self._max_position
 
     @property
     def energy_min(self):
         """
-        :return: 返回路径上各点的坐标
+        :return:  the BVSE energy of the image with the lowest BVSE energy value
         """
         return self._min_energy
 
     @property
     def barrier(self):
         """
-        :return: 返回迁移能垒
+        :return: migration barrier
         """
         return self._barrier
 
     def cal_path(self):
         """
-        计算起始点之间的最小能量路径，
-        :return: 返回值为两维数组，其中每一点为路径上某一点的坐标
+        Calculate the MEP between endpoints
+        :return: Two dimensional array，every row is the coordinate of each image on the MEP
         """
         for i in range(len(self._endpoints)-1):
             start_f = [j for j in self._endpoints[i]]
@@ -156,26 +159,24 @@ class MigrationPath(object):
             dr = np.array(dr, dtype=float)
         keff = k * dr * n_images
         h0 = h
-        # 初使化 string
-        g1 = np.linspace(0, 1, n_images)  # 创建等差数列
-        s0 = start  # 初使结构的迁移离子的坐标
-        s1 = end  # 最终结构的迁移离子的坐标
-        s = np.array([g * (s1 - s0) for g in g1]) + s0  # s是一个3*n的矩阵
-        ds = s - np.roll(s, 1, axis=0)  # np.roll函数的意思是将s，沿着axis的方向，滚动1个长度，相当于把最后一个元素放到第一个
-        ds[0] = (ds[0] - ds[0])  # 把第一个元素置为（0，0，0）
-        ls = np.cumsum(la.norm(ds, axis=1))  # norm求ds的范数  cumsum计算轴向元素累加和，返回由中间结果组成的数组
-        ls = ls / ls[-1]  # 归一化
-        fi = interp1d(ls, s, axis=0)  # 插值
+        g1 = np.linspace(0, 1, n_images)
+        s0 = start
+        s1 = end
+        s = np.array([g * (s1 - s0) for g in g1]) + s0
+        ds = s - np.roll(s, 1, axis=0)
+        ds[0] = (ds[0] - ds[0])
+        ls = np.cumsum(la.norm(ds, axis=1))
+        ls = ls / ls[-1]
+        fi = interp1d(ls, s, axis=0)
         s = fi(g1)
-        # print(s)
         # Evaluate initial distances (for elastic equilibrium)
-        ds0_plus = s - np.roll(s, 1, axis=0)  # 正向
-        ds0_minus = s - np.roll(s, -1, axis=0)  # 负向
+        ds0_plus = s - np.roll(s, 1, axis=0)
+        ds0_minus = s - np.roll(s, -1, axis=0)
         ds0_plus[0] = (ds0_plus[0] - ds0_plus[0])
         ds0_minus[-1] = (ds0_minus[-1] - ds0_minus[-1])
-        dV = np.gradient(V)  # 计算梯度
+        dV = np.gradient(V)
 
-        # Evolve string
+        # Evlve string
         for step in range(0, max_iter):
             # if step > min_iter:
             # h = h0 * np.exp(-2.0 * (step - min_iter) / max_iter)  # 逐步衰减步长以减少震荡
@@ -189,21 +190,19 @@ class MigrationPath(object):
                              dV[1][int(pt[0]) % d[0]][int(pt[1]) % d[1]][int(pt[2]) % d[2]] / dr[1],
 
                              dV[2][int(pt[0]) % d[0]][int(pt[1]) % d[1]][int(pt[2]) % d[2]] / dr[2]] for pt in s])
-
             # Update according to force due to potential and string elasticity
             ds_plus = s - np.roll(s, 1, axis=0)
             ds_minus = s - np.roll(s, -1, axis=0)
             ds_plus[0] = (ds_plus[0] - ds_plus[0])
             ds_minus[-1] = (ds_minus[-1] - ds_minus[-1])
-
             Fpot = edV
             Fel = keff * (la.norm(ds_plus) - la.norm(ds0_plus)) * (ds_plus / la.norm(ds_plus))
             Fel += keff * (la.norm(ds_minus) - la.norm(ds0_minus)) * (ds_minus / la.norm(ds_minus))
             s = s - h * (Fpot + Fel)
-            # 每次迭代保持两端值保持不变
+            # Keep the coordinates of the endpoints unchanged in each iteration
             s[0] = s0[0]
             s[-1] = s0[-1]
-            # Reparametrize string            #更新参数
+            # Reparametrize string
             ds = s - np.roll(s, 1, axis=0)
             ds[0] = (ds[0] - ds[0])
             ls = np.cumsum(la.norm(ds, axis=1))
@@ -223,11 +222,10 @@ class MigrationPath(object):
 
     def cal_point_energy(self, point):
         """
-        计算结构中任意一点的能量
-        :param point: 一维列表，表示该点的分数坐标
-        :return: float型，该点的能量
+        Calculate the BVSE energy according to the discrete grid coordinates of the site point
+        :param point: array，the discrete grid coordinates of the site point
+        :return: float型，BVSE energy
         """
-
         x = np.linspace(0, 1, self._energy.shape[0])
         y = np.linspace(0, 1, self._energy.shape[1])
         z = np.linspace(0, 1, self._energy.shape[2])
@@ -240,10 +238,10 @@ class MigrationPath(object):
 
     def get_dis(self, p1, p2):
         """
-        计算结构中任意两点之间的距离，该距离考虑周期性
-        :param p1: 坐标，一维数组
-        :param p2: 坐标，一维数组
-        :return: float，距离
+        Calculate the distance between p1 and p2 in the structure, which considers periodicity
+        :param p1: One-dimensional array such as [0.11,0.22,0.33]
+        :param p2:，One-dimensional
+        :return: float，the distance between p1 and p2
         """
         temp_site1 = PeriodicSite('Ar', p1, self._struc.lattice)
         temp_site2 = PeriodicSite('Ar', p2, self._struc.lattice)
@@ -252,7 +250,7 @@ class MigrationPath(object):
 
     def cal_energy(self):
         """
-        计算路径上点的能量，以及瓶颈处的能量和迁移能垒
+        Calculate the BVSE energy of points on the MEP, the BVSE energy at the bottleneck and energy barriers
         """
         energy_path = []
         for point in self._path:
@@ -275,8 +273,8 @@ class MigrationPath(object):
 
     def path_to_poscar(self, filename):
         """
-        可视化路径
-        :param filename: 结构的cif文件名
+        Visual MEP by Poscar file
+        :param filename: cif filename
         """
         struc = Structure.from_str(open(filename).read(), fmt="cif")
         struc.to(fmt='POSCAR', filename=filename.split(".")[0] + 'POSCAR')
@@ -302,6 +300,7 @@ class MigrationNetwork(object):
         if ismergecluster:
             mergevoid = mc.MergeCluster(voids_dict, channels_dict, self._struc, self._energy, filename_CIF,
                                         clusterradii=0.5)
+            mergevoid.to_net(filename_CIF)
             for void in mergevoid.mergedvoids:
                 self._voids[void.id] = void
             for channel in mergevoid.mergedchannels:
@@ -320,7 +319,6 @@ class MigrationNetwork(object):
     def paths_energy(self):
         return [path['energys_path'] for key, path in self._nonequl_paths.items()]
 
-
     def init_voids_channels(self, radii_threadhold=0.35):
         small_voids = [void_id for void_id, void in self._voids.items() if void.radii < radii_threadhold]
         self._voids = {void_id: void for void_id, void in self._voids.items() if void.radii >= radii_threadhold}
@@ -328,7 +326,6 @@ class MigrationNetwork(object):
                           if channel.start not in small_voids and channel.end not in small_voids}
         self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
                           if channel.radii >= radii_threadhold}
-
         for void_id, void in self._voids.items():
             void.energy = self.cal_point_energy(void.coord)
         for channel_id, channel in self._channels.items():
@@ -380,8 +377,12 @@ class MigrationNetwork(object):
                 self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
                                   if channel.energy < self._energythreshold}
             else:
+                highenergy_voids = [void_id for void_id, void in self._voids.items() if
+                                    void.energy >= self._energythreshold]
                 self._voids = {void_id: void for void_id, void in self._voids.items() if
                                void.energy < self._energythreshold}
+                self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
+                                  if channel.start not in highenergy_voids and channel.end not in highenergy_voids}
 
     def cal_nonequalpath_between_voids(self):
         if self._iscalnonequalchannels:
@@ -409,7 +410,7 @@ class MigrationNetwork(object):
         self.cal_noneqpaths_bvse()
 
     def cal_point_energy(self, point):
-        # 计算能量场中一点的能量
+        # Calculate the bvse energy  according to the discrete grid coordinates of the site
         x = np.linspace(0, 1, self._energy.shape[0])
         y = np.linspace(0, 1, self._energy.shape[1])
         z = np.linspace(0, 1, self._energy.shape[2])
@@ -428,7 +429,7 @@ class MigrationNetwork(object):
 
     def cal_noneqpaths_cavd(self):
         """
-        使用cavd计算出的间隙网络计算出非等价迁移路径
+        calculate the label of each transport pathway between mobile ion lattice site
         """
         labels_positions = []
         positions_moveion = []
@@ -448,7 +449,7 @@ class MigrationNetwork(object):
                             mini_dis = dis
                             temp_position['label'] = void.label
                             temp_position['id_CAVD'] = void.id
-                            if mini_dis < 0.1:
+                            if mini_dis < 0.05:
                                 break
                     if temp_position['label'] not in labels_positions:
                         labels_positions.append(temp_position['label'])
@@ -470,24 +471,21 @@ class MigrationNetwork(object):
         for pair_label, position_pairs in positions_pair.items():
             for position_pair in position_pairs:
                 try:
-                    #voids_path = nx.shortest_path(self._mignet, source=position_pair[0],
-                                                  # target=position_pair[1], weight='weight')
                     voids_path = list(nx.shortest_path(self._mignet,
                                                           source=position_pair[0], target=position_pair[1]))
                 except nx.NetworkXNoPath:
-                    voids_path = None
+                    voids_path = []
                 if 0 < len(voids_path) < 7:
                     temppath = {'phase_path': [0, 0, 0], 'phases_path_segment':[], 'points_path':[],
                                 'energys_path':[], 'pair_label': pair_label}
                     labels_path = []
                     for i in range(len(voids_path)-1):
-                        # 计算路径片段的label
                         labels_path.append(self._mignet[voids_path[i]][voids_path[i+1]]['label'])
                         temppath['phases_path_segment'].append(self._mignet[voids_path[i]][voids_path[i+1]]['phase'])
                         temppath['phase_path'][0] += self._mignet[voids_path[i]][voids_path[i+1]]['phase'][0]
                         temppath['phase_path'][1] += self._mignet[voids_path[i]][voids_path[i+1]]['phase'][1]
                         temppath['phase_path'][2] += self._mignet[voids_path[i]][voids_path[i+1]]['phase'][2]
-                    tag0 = True  # tag0用来判断是否含晶格位点
+                    tag0 = True
                     voidlabels_path = [self._mignet.node[voids_path[0]]["label"]]
                     for i in range(1, len(voids_path)-1):
                         lab = self._mignet.node[voids_path[i]]["label"]
@@ -502,7 +500,6 @@ class MigrationNetwork(object):
                     temppath['voidcoord_path'] = [self._voids[id].coord for id in voids_path]
                     temppath['barrier_path'] = None
                     if tag0:
-                        print(labels_path)
                         if labels_path[0] < labels_path[-1]:
                             key_path = tuple(labels_path)
                         else:
@@ -516,7 +513,7 @@ class MigrationNetwork(object):
 
     def cal_noneqpaths_bvse(self):
         """
-            计算非等价迁移路径上的各点坐标和能量
+            Calculate the mep under BVSE potential
         """
         for path in self._nonequl_paths.values():
             coords_path = path['voidcoord_path']
@@ -525,19 +522,10 @@ class MigrationNetwork(object):
             path['points_path'] = mp.path
             path['energys_path'] = mp.path_energy
             path['barrier_path'] = mp.barrier
-            print(path['pair_label'][0], path['pair_label'][1], round(path['barrier_path'],3))
-            '''struc = Structure.from_str(open(self._filename_cif).read(), fmt="cif")
-            struc.to(fmt='POSCAR', filename=self._filename_cif.split(".")[0] + '_POSCAR')
-            struc1 = Structure.from_file(self._filename_cif.split(".")[0] + '_POSCAR')
-            for j in range(1, len(path['points_path']) - 1):
-                struc1.insert(0, 'H', path['points_path'][j])
-            struc1.to(filename=self._filename_cif.split(".")[0] + str(i) + '_POSCARpath')
-            print(path['voidlabels_path'], path['barrier_path'])
-            i += 1'''
 
     def save_data(self,filename):
         """
-        保存数据
+        Save nonequivalent transport pathways to ***_nonequalpaths.txt
         """
         with open(filename.split(".")[0] + '_nonequalpaths.txt', 'w') as f:
             i = 0
@@ -545,6 +533,8 @@ class MigrationNetwork(object):
                 if len(path['points_path']) > 0:
                     f.write('nonequalpath id:' + str(i) + '\n')
                     i += 1
+                    f.write(path['pair_label'][0] + "  ->  " + path['pair_label'][0] + "  energy barrier  " +
+                            str(round(path['barrier_path'],3))+ '\n ')
                     points = path['points_path']
                     energys = path['energys_path']
                     for j in range(len(points)):
@@ -633,10 +623,5 @@ def paths_to_poscar(filename_cavd, filename_cif, filename_bvse,energythreshold=N
         struc1.insert(0, 'He', voids[channel[0]].coord)
         struc1.insert(0, 'He', voids[channel[1]].coord)
     struc1.to(filename=filename_cif.split(".")[0] + '_POSCAR')
-
-#filename_CAVD = "example/LGPS/LGPS.net"
-#filename_BVSE = "example/LGPS/LGPS.npy"
-filename_CIF = "example/LGPS/LGPS.cif"
-#paths_to_poscar(filename_CAVD, filename_CIF,filename_BVSE)
 
 

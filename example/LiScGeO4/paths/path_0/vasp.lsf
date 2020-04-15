@@ -1,0 +1,10 @@
+#!/bin/sh
+#BSUB -cwd.
+#BSUB -e %J.err
+#BSUB -o %J.out
+#BSUB -q priority
+#BSUB -n 224
+#BSUB -J path_0
+#BSUB -x
+ncpus=`cat $LSB_DJOB_HOSTFILE | wc -l ` 
+mpirun  -hostfile $LSB_DJOB_HOSTFILE  -np  ${ncpus} vasp

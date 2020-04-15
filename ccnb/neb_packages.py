@@ -66,20 +66,17 @@ class neb_packages(object):
                 continue
             struc = Structure.from_file(self.dir+'/POSCAR')
             struc.to(filename=dir+'/POSCAR')
-            
             for i in range(1,len(p)-1):
                 struc.insert(0, 'He', p[i])
             struc.to(filename=dir+'/POSCAR_path')
-            
             struc1 = Structure.from_file(dir+'/POSCAR_base')
             struc1.insert(0, self.migration_ion, path[0]) #at the first site insert the interval point
             struc1.to(filename=dir+"/POSCAR1")
-            
             struc2 = Structure.from_file(dir+'/POSCAR_base')
             struc2.insert(0, self.migration_ion, path[-1]) #at the first site insert the interval point
             struc2.to(filename=dir+"/POSCAR2")
-            
             self.vi.set_incar({'images':len(p)-2})
+
             self.vi.inputs(dir, True)
             num=num+1
         zip_path(self.dir+'/paths', self.filename+ '_neb_paths.zip')

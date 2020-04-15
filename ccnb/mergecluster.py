@@ -338,7 +338,7 @@ class MergeCluster(object):
                         + str(int(channel.phase[1])) + " " + str(int(channel.phase[2])) + "\t "
                         + str(channel.coord[0]) + " "
                         + str(channel.coord[1]) + " " + str(channel.coord[2]) + "\t "
-                        + str(channel.radii) + "\t " + str(channel.dist) + "\n")
+                        + str(channel.radii)  + "\n")
 
     def get_clusters(self):
         """
