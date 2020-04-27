@@ -81,9 +81,9 @@ def load_bvse_from_pgrid(filename_bvse):
 
 def load_voids_channels_from_file(filename_cavd):
     """
-    从CAVD计算出的NET文件中读取间隙、导通信息
-    :param filename_cavd: 要读取的文件名
-    :return: 返回voids 和channels 两个字典
+    Read interstices and channel segments from net file calculated by cavd
+    :param filename_cavd: NET filename
+    :return: dict, interstices and channel segments
     """
     voids_dict = {}
     channels_dict = {}
@@ -148,7 +148,7 @@ def get_non_equivalent_paths_between_voids(filename_CIF, filename_BVSE, filename
     energy = load_bvse_from_npy(filename_BVSE)
     mn = MigrationNetwork(struc, energy, voids, channels,filename_CIF, moveion=moveion, ismergecluster=True,
                           energythreshold=energythreshold, iscalnonequalchannels=True)
-    return mn.cal_nonequalpath_between_voids()
+    return mn.cal_nonequal_mep_between_voids()
 
 
 def configure_neb_packet(filename_CIF, mep, moveion="Li"):

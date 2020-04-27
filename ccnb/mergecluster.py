@@ -5,14 +5,10 @@ from scipy.spatial import cKDTree
 import networkx as nx
 import ase.spacegroup as spg
 from pymatgen.core.sites import PeriodicSite
-from pymatgen.core.structure import Structure
 from cavd.local_environment import CifParser_new
 
 
 class Void(object):
-    """
-    把间隙抽象为Void类，包含id、类别、坐标、半径、能量等属性
-    """
     def __init__(self):
         self.id = None
         self.label = None
@@ -22,9 +18,6 @@ class Void(object):
 
 
 class Channel(object):
-    """
-    把通道抽象为Channel类，包含开始间隙点id、结束间隙点id、晶相、瓶颈分数坐标、瓶颈尺寸等属性
-    """
     def __init__(self):
         self.start = None
         self.end = None
@@ -38,22 +31,15 @@ class Channel(object):
 
 class MergeCluster(object):
     def __init__(self, voids_dict, channels_dict, structure, bvse, filename_cif, clusterradii=0.5):
-        """
-        根据间隙簇的距离来合并间隙簇
-        :param clusterradii: 寻找间隙簇的距离判据
-        :param radii_it:  用于筛选间隙的半径阈值
-        :param radii_bn:  用于筛选通道的半径阈值
-        """
         self._struc = structure
         self._energy = bvse
-        for void_id, void in voids_dict.items():
-            void.energy = self.cal_point_energy(void.coord)
         self._voids = voids_dict
         self._channels = channels_dict
         self._mergedvoids = []
         self._mergedchannels = []
         self._clusterradii = clusterradii
         self._clusters = []
+        self.init_voids_channels()
         self.find_clusters()
         self.handle_voidsandchannels()
         self.cal_void_label(filename_cif)
@@ -61,23 +47,23 @@ class MergeCluster(object):
     @property
     def mergedvoids(self):
         """
-        合并后的间隙列表
+        Return to all merged voids
         """
         return self._mergedvoids
 
     @property
     def mergedchannels(self):
         """
-        合并后的通道片段列表
+        Return to all merged channel segments
         """
         return self._mergedchannels
 
     def get_absolute_dis(self, p1, p2):
         """
-        在不考虑周期性的情况下，计算两点之间的距离
-        :param p1: 分数坐标，例如[0.5，0.5，0.5]
-        :param p2: 分数坐标
-        :return: 两点之间的欧式距离，类型为float
+        Calculate the distance between two sites without considering periodicity
+        :param p1: fractional coordinates of site p1，such as[0.5，0.5，0.5]
+        :param p2: fractional coordinates of site p2
+        :return: float, the distance between two sites
         """
         coord1 = np.array(self.fac2cart(p1))
         coord2 = np.array(self.fac2cart(p2))
@@ -86,10 +72,10 @@ class MergeCluster(object):
 
     def get_period_dis(self, p1, p2):
         """
-        在考虑周期性的情况下，计算两点之间的距离
-        :param p1: 分数坐标，例如[0.5，0.5，0.5]
-        :param p2: 分数坐标
-        :return:  两点之间的距离，考虑周期性
+        Calculate the distance between two sites with considering periodicity
+        :param p1: fractional coordinates of site p1，such as[0.5，0.5，0.5]
+        :param p2: fractional coordinates of site p2
+        :return:  the distance between two sites
         """
         temp_site1 = PeriodicSite('Ar', p1, self._struc.lattice)
         temp_site2 = PeriodicSite('Ar', p2, self._struc.lattice)
@@ -98,18 +84,22 @@ class MergeCluster(object):
 
     def fac2cart(self, coord):
         """
-        分数坐标转换成笛卡尔坐标
+        Converting fractional coordinates to Cartesian coordinates
         """
         return np.dot(coord, self._struc.lattice.matrix)
 
     def cart2fac(self, coord):
         """
-        笛卡尔坐标转换成分数坐标
+        Converting Cartesian coordinates to fractional coordinates
         """
         return np.dot(coord, np.linalg.inv(self._struc.lattice.matrix))
 
     def cal_point_energy(self, point):
-        # 计算能量场中一点的能量
+        """
+        Calculate the bond valence site energy of a site in crystal structure
+        :param point: fractional coordinates of a site
+        :return: float,the bond valence site energy of a site
+        """
         x = np.linspace(0, 1, self._energy.shape[0])
         y = np.linspace(0, 1, self._energy.shape[1])
         z = np.linspace(0, 1, self._energy.shape[2])
@@ -121,9 +111,23 @@ class MergeCluster(object):
                 point[i] -= 1
         return interpolating_function(np.array(point))[0]
 
+    def init_voids_channels(self, radii_threadhold=0.5):
+        """
+        Initialize interstices and channel segments,delete too small interstices and channel segments
+        :param radii_threadhold: float, filter threshold
+        """
+        for void_id, void in self._voids.items():
+            void.energy = self.cal_point_energy(void.coord)
+        small_voids = [void_id for void_id, void in self._voids.items() if void.radii < radii_threadhold]
+        self._voids = {void_id: void for void_id, void in self._voids.items() if void.radii >= radii_threadhold}
+        self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
+                          if channel.start not in small_voids and channel.end not in small_voids}
+        self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
+                          if channel.radii >= radii_threadhold}
+
     def find_clusters(self):
         """
-        在所有间隙中找到每一个簇
+        find each clusters in interstital network
         """
         coords = []
         pair_voids = []
@@ -171,21 +175,23 @@ class MergeCluster(object):
                             graph_subvout.add_edge(e[0], e[1])
                         for sc in nx.connected_component_subgraphs(graph_subvout):
                             queue_clusters.append(list(sc.nodes))
-        print("间隙簇的个数为", len(self._clusters))
+        print("Number of clusters", len(self._clusters))
         print(self._clusters)
 
     def handle_voidsandchannels(self):
+        """
+        handle clusters
+        """
         mignet = nx.Graph()
         for void_id, void in self._voids.items():
             mignet.add_node(void.id, label=void.label, coord=void.coord, radii=void.radii)
-        for e_id, e in self._channels.items():  # 添加边
+        for e_id, e in self._channels.items():
             if e.start < e.end:
                 phase1 = e.phase
                 phase2 = [0, 0, 0]
                 for i in range(3):
                     if phase1[i] != 0:
                         phase2[i] = -1 * phase1[i]
-                # phase1表示从id小的到大的phase,phase2表示从id大的到小的phase
                 mignet.add_edge(e.start, e.end, phase1=phase1, phase2=phase2, coord1=e.coord, radii1=e.radii,
                                 dist1=e.dist)
         if len(self._clusters) > 0:
@@ -308,11 +314,13 @@ class MergeCluster(object):
         return tags, tagdis
 
     def cal_void_label(self, filename_cif, symprec=0.1):
+        """
+        Classification of interstices based on symmetry
+        """
         with zopen(filename_cif, "rt") as f:
             input_string = f.read()
         parser = CifParser_new.from_string(input_string)
         sitesym = parser.get_sym_opt()
-
         voids_positions = []
         for void in self.mergedvoids:
             voids_positions.append(void.coord)
@@ -322,7 +330,7 @@ class MergeCluster(object):
 
     def to_net(self, filename):
         """
-        将合并之后的间隙点和通道片段保存到NET文件中
+        Save the merged interstices and channel fragments to a net file
         :param filename: output will be written to a file
         """
         with open(filename.split(".")[0]+'_mergecluster.net', 'w') as f:
@@ -343,7 +351,7 @@ class MergeCluster(object):
     def get_clusters(self):
         """
         Find all interstice clusters in a periodic unit cell
-        :return: list
+        :return: list, all interstice clusters
         """
         clusters = []
         for cluster in self._clusters:

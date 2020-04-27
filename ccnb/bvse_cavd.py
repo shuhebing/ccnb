@@ -152,7 +152,7 @@ class MigrationPath(object):
 
     @staticmethod
     def pathfind(start, end, V, n_images=21, dr=None, h=0.001, k=0.17, min_iter=100, max_iter=10000, max_tol=5e-6):
-        # Set parameters
+        # created by pymatgen
         if not dr:
             dr = np.array([1.0 / (V.shape[0] - 1), 1.0 / (V.shape[1] - 1), 1.0 / (V.shape[2] - 1)])
         else:
@@ -224,7 +224,7 @@ class MigrationPath(object):
         """
         Calculate the BVSE energy according to the discrete grid coordinates of the site point
         :param point: array，the discrete grid coordinates of the site point
-        :return: float型，BVSE energy
+        :return: float，BVSE energy
         """
         x = np.linspace(0, 1, self._energy.shape[0])
         y = np.linspace(0, 1, self._energy.shape[1])
@@ -287,6 +287,9 @@ class MigrationPath(object):
 class MigrationNetwork(object):
     def __init__(self, struc, energy, voids_dict, channels_dict, filename_CIF, moveion='Li',ismergecluster=False,
                  energythreshold=None, iscalnonequalchannels = True):
+        """
+        Calculate the transport network,analysis transport pathways
+        """
         self._moveion = moveion
         self._voids = {}
         self._channels = {}
@@ -309,7 +312,6 @@ class MigrationNetwork(object):
             self._voids = voids_dict
             self._channels = channels_dict
         self.init_voids_channels()
-        self.select_voids_channels_by_energy()
 
     @property
     def paths_position(self):
@@ -319,36 +321,13 @@ class MigrationNetwork(object):
     def paths_energy(self):
         return [path['energys_path'] for key, path in self._nonequl_paths.items()]
 
-    def init_voids_channels(self, radii_threadhold=0.35):
-        small_voids = [void_id for void_id, void in self._voids.items() if void.radii < radii_threadhold]
-        self._voids = {void_id: void for void_id, void in self._voids.items() if void.radii >= radii_threadhold}
-        self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
-                          if channel.start not in small_voids and channel.end not in small_voids}
-        self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
-                          if channel.radii >= radii_threadhold}
+    def init_voids_channels(self):
         for void_id, void in self._voids.items():
             void.energy = self.cal_point_energy(void.coord)
         for channel_id, channel in self._channels.items():
             channel.dist = self.get_dis(self._voids[channel.start].coord, self._voids[channel.end].coord)
         if self._iscalnonequalchannels:
-            i = 0
-            for channel_id, channel in self._channels.items():
-                if self._voids[channel.start].label < self._voids[channel.end].label:
-                    key = (self._voids[channel.start].label, self._voids[channel.end].label,
-                           round(channel.dist, 0))
-                else:
-                    key = (self._voids[channel.end].label, self._voids[channel.start].label,
-                           round(channel.dist, 0))
-                if key not in self._nonequalchannels.keys():
-                    mp = MigrationPath([self._voids[channel.start].coord, self._voids[channel.end].coord],
-                                       [channel.phase], self._energy, self._struc)
-                    channel.energy = mp.energy_max
-                    channel.label = i
-                    self._nonequalchannels[key] = {"label": i, "energy": channel.energy}
-                    i += 1
-                else:
-                    channel.label = self._nonequalchannels[key]["label"]
-                    channel.energy = self._nonequalchannels[key]["energy"]
+            self.cal_nonequal_mep_between_voids()
         else:
             i = 0
             for channel_id, channel in self._channels.items():
@@ -365,46 +344,53 @@ class MigrationNetwork(object):
                 else:
                     channel.label = self._nonequalchannels[key]["label"]
 
-    def select_voids_channels_by_energy(self):
         if self._energythreshold:
+            highenergy_voids = [void_id for void_id, void in self._voids.items() if
+                                void.energy >= self._energythreshold]
+            self._voids = {void_id: void for void_id, void in self._voids.items() if
+                           void.energy < self._energythreshold}
             if self._iscalnonequalchannels:
-                highenergy_voids = [void_id for void_id, void in self._voids.items() if
-                                    void.energy >= self._energythreshold]
-                self._voids = {void_id: void for void_id, void in self._voids.items() if
-                               void.energy < self._energythreshold}
                 self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
                                   if channel.start not in highenergy_voids and channel.end not in highenergy_voids}
                 self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
                                   if channel.energy < self._energythreshold}
             else:
-                highenergy_voids = [void_id for void_id, void in self._voids.items() if
-                                    void.energy >= self._energythreshold]
-                self._voids = {void_id: void for void_id, void in self._voids.items() if
-                               void.energy < self._energythreshold}
                 self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
                                   if channel.start not in highenergy_voids and channel.end not in highenergy_voids}
 
-    def cal_nonequalpath_between_voids(self):
-        if self._iscalnonequalchannels:
-            nonequalpath = []
-            print(self._voids.keys())
-            for channelid,channel in self._nonequalchannels.items():
-                print(channelid)
-                if channelid[0] in self._voids.keys() and channelid[1] in self._voids.keys():
-                    print(self._voids[channelid[0]].energy)
-                    path = {'start':channelid[0],'end':channelid[1],'startenergy': self._voids[channelid[0]].energy,
-                            'endenergy': self._voids[channelid[1]].energy,'bnenergy':channel['energy']}
-                    nonequalpath.append(path)
-            return nonequalpath
-        else:
-            raise("please set iscalnonequalchannels parameter to True!")
+    def cal_nonequal_mep_between_voids(self):
+        i = 0
+        for channel_id, channel in self._channels.items():
+            if self._voids[channel.start].label < self._voids[channel.end].label:
+                key = (self._voids[channel.start].label, self._voids[channel.end].label,
+                       round(channel.dist, 0))
+            else:
+                key = (self._voids[channel.end].label, self._voids[channel.start].label,
+                       round(channel.dist, 0))
+            if key not in self._nonequalchannels.keys():
+                mp = MigrationPath([self._voids[channel.start].coord, self._voids[channel.end].coord],
+                                   [channel.phase], self._energy, self._struc)
+                channel.energy = mp.energy_max
+                channel.label = i
+                self._nonequalchannels[key] = {"start": channel.start, "end":channel.end,
+                                                "label": i, "energy": channel.energy}
+                i += 1
+            else:
+                channel.label = self._nonequalchannels[key]["label"]
+                channel.energy = self._nonequalchannels[key]["energy"]
+        nonequalpath = []
+        for channelid,channel in self._nonequalchannels.items():
+            path = {'start':channel["start"],'end':channel["end"],'startenergy': self._voids[channel["start"]].energy,
+                            'endenergy': self._voids[channel["end"]].energy,'bnenergy':channel['energy']}
+            nonequalpath.append(path)
+            print(path)
+        return nonequalpath
 
     def cal_nonequl_paths(self):
         self._mignet = nx.DiGraph()
         for id_void, void in self._voids.items():
             self._mignet.add_node(void.id, label=void.label, coord=void.coord, energy=void.energy)
-        for channel_id, channel in self._channels.items():  # 添加边
-            # channel_barrier = max(0, channel.energy-self._voids[channel.start].energy)
+        for channel_id, channel in self._channels.items():
             self._mignet.add_edge(channel.start, channel.end, label=channel.label, phase=channel.phase)
         self.cal_noneqpaths_cavd()
         self.cal_noneqpaths_bvse()
@@ -533,7 +519,7 @@ class MigrationNetwork(object):
                 if len(path['points_path']) > 0:
                     f.write('nonequalpath id:' + str(i) + '\n')
                     i += 1
-                    f.write(path['pair_label'][0] + "  ->  " + path['pair_label'][0] + "  energy barrier  " +
+                    f.write(path['pair_label'][0] + "  ->  " + path['pair_label'][1] + "  energy barrier  " +
                             str(round(path['barrier_path'],3))+ '\n ')
                     points = path['points_path']
                     energys = path['energys_path']
@@ -547,21 +533,21 @@ class MigrationNetwork(object):
                 xcoords = [path['energys_path'][j][0] for j in range(len(path['energys_path']))]
                 ycoords = [path['energys_path'][j][1] for j in range(len(path['energys_path']))]
                 ycoords = [y - min(ycoords) for y in ycoords]
-                poly = np.polyfit(xcoords, ycoords, deg=7)  # 最小二乘法多项式拟合
+                poly = np.polyfit(xcoords, ycoords, deg=7)
                 z = np.polyval(poly, xcoords)
                 plt.figure(figsize=(8, 6))
                 plt.plot(xcoords, z, linewidth=2, color="black")
                 plt.xticks(fontsize=16)
                 plt.yticks(fontsize=16)
                 plt.scatter(xcoords, z, color='k', marker='o')
-                plt.xlabel("Reaction Coordinate ", fontsize=18)  # X轴标签
-                plt.ylabel("Energy", fontsize=18)  # Y轴标签
+                plt.xlabel("Reaction Coordinate ", fontsize=18)
+                plt.ylabel("Energy", fontsize=18)
                 save_path = filename.split(".")[0]+'-'.join([str(i) for i in nonqul_id]) + '.png'
                 plt.savefig(save_path)
                 plt.show()
 
 
-def paths_to_poscar(filename_cavd, filename_cif, filename_bvse,energythreshold=None):
+def paths_to_poscar(filename_cavd, filename_cif, filename_bvse, energythreshold=None):
     voids_list = []
     channels_list = []
     flag_p = 0
