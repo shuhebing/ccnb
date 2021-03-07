@@ -1,17 +1,23 @@
-# CCNB
+# CCBN
 
 #### 介绍
-A highly efficient and informative method to identify ion transport networks in fast ion conductors
-By He Bing, Mi Penghui, Ye Anjiang, Chi Shuting 
-我们提出了一种更高效的方法通过结合拓扑路径网络和BVSE能量势场构建来离子输运网络，从而得到相邻晶格点间非等效离子输运路径的几何和能量属性。
-这些路径信息可进一步用作输入，用于自动生成images的NEB计算。
+使用Python3编程语言开发了一个Python库CCBN来实现了几何分析和BVSE的融合方法的所有功能
+
 
 #### 软件架构
 
-(1) CAVD计算几何拓扑路径网络
-(2) bvse模块
-(1) 融合几何分析方法和键价和方法等经验方法来计算和分析晶体结构的离子输运通道网络，并得到迁移离子晶格位之间的输运路径的几何和能量属性。
-(2) 为了实现并加速自动NEB计算，将沿着融合几何分析和键价和方法计算出的路径自动生成过渡态，并自动生成NEB计算需要的配置文件。
+(1)	BVAnalysis
+在该模块中实现了键价和方法，提供了BVS、BVSE、BVEL三种模型的计算功能。通过该模块可以计算出几何分析和BVSE的融合方法计算所需要的BVSE势场文件。
+(2)	cavd_channel
+该模块是一个CAVD接口模块，调用了CAVD计算间隙网络功能。CCBN提供了该接口用以屏蔽底层CAVD的实现，方便相关研究人员产生几何分析和BVSE融合方法计算所需要的间隙网络输入文件。
+(3)	MergeCluster
+该模块实现了3.2.1节所叙述的合并间隙簇算法。
+(4)	MigrationPath 
+该模块实现了3.1节所叙述的基于BVSE势场的寻找最小能量路径算法。
+(5)	MigrationNetwork
+该模块实现了3.2.2节所叙述的计算离子输运网络和3.3节叙述的相邻晶格位之间的非等价路径计算算法。
+(6)	neb_packages
+该模块实现了3.4节叙述的自动化DFT-NEB计算算法，该模块可根据相邻晶格位之间的非等价路径计算算法的计算结果自动产生第一性原理DFT-NEB方法计算所需的POSCAR文件，以及自动生成其他的例如POTCAR、INCAR、KPOINTS等文件。
 
 
 #### 安装教程
