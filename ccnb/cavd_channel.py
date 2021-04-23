@@ -26,6 +26,7 @@ def cal_channel_cavd(filename, migrant, ntol=0.02, rad_flag=True, lower=0, upper
             radii = rad_dict
         else:
             radii = effec_radii
+    print(radii)
     atmnet = AtomNetwork.read_from_RemoveMigrantCif(filename, migrant, radii, rad_flag)
     vornet, edge_centers, fcs, faces = atmnet.perform_voronoi_decomposition(True, ntol)
     # add_fcs_vornet = vornet.add_facecenters(faces)

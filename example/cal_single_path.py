@@ -178,15 +178,14 @@ def showpathsenergy(p_e):
 
 
 if __name__ == "__main__":
-    filename_BVSE = 'LGPS\\LGPS.npy'
-    filename_CIF = 'LGPS\\LGPS.cif'
+    filename_BVSE = 'LiAlSiO4\\icsd_32595.npy'
+    filename_CIF = 'LiAlSiO4\\icsd_32595.cif'
     struc = Structure.from_file(filename_CIF)
     energy = np.load(filename_BVSE)
     energy = energy - np.amin(energy)
     endpoints = [
-                 [0.75873 , 0.78301,  0.38703],[0.50071 , 0.50837 , 0.25337 ],[ 0.25019 , 0.28335 , 0.11941],
-                 [0.23286,  0.25683 , 0.44804],
-                 [0.25439,  0.23225 , 0.76262]]
+                 [1.00000,  1.00000,  0.16667],
+                 [1.00000 , 1.00000 , 0.50000]]
     p =calpath(endpoints, struc,energy,count_images=11)
     #count_images 是每段路径插入点的个数
     print(p)  #输出坐标

@@ -10,8 +10,6 @@ from scipy.ndimage import measurements
 import scipy.ndimage
 import math
 from struct import pack
-
-
 def loadbvparam(filename):
     with open(filename,'r') as fp:
         lines=fp.readlines()
@@ -143,16 +141,16 @@ class BVAnalysis(object):
     def SetLengthResolution(self,reslen=0.1):
         abc=self._Struct.Getabc()
         self._reslen=reslen
-        self._Size[0]=int(abc[0]/reslen)
-        self._Size[1]=int(abc[1]/reslen)
-        self._Size[2]=int(abc[2]/reslen)
+        self._Size[0]=int(abc[0]/reslen)+1
+        self._Size[1]=int(abc[1]/reslen)+1
+        self._Size[2]=int(abc[2]/reslen)+1
     def SaveBVSEData(self,filename):
-        self.SaveBinaryData(filename, self.__Data['BVSE'],'BVSE')
-        np.save(filename+".npy",self.__Data['BVSE'])
+        self.SaveBinaryData(filename+'_BVSE.pgrid', self.__Data['BVSE'],'BVSE')
+        np.save(filename+"_BVSE.npy",self.__Data['BVSE'])
     def SaveBVELData(self,filename):
-        self.SaveData(filename, self.__Data['BVEL'],'BVEL')
+        self.SaveBinaryData(filename+'_BVEL.pgrid', self.__Data['BVEL'],'BVEL')
     def SaveBVSData(self,filename):
-        self.SaveBinaryData(filename, self.__Data['BVS'],'BVS')
+        self.SaveBinaryData(filename+'_BVS.pgrid', self.__Data['BVS'],'BVS')
     def SaveData(self,filename,data,datatype=' '):
         fp=open(filename,'w')
         fp.write(datatype+'\n')
@@ -178,9 +176,9 @@ class BVAnalysis(object):
             outf.write(pack('3i', *self._Size))  # numbers of voxels
             outf.write(pack('i', data.size))  # Total number of voxels
             outf.write(pack('6f', *latticeparam))  # lattice parameters
-            for i in range(self._Size[0]):
+            for k in range(self._Size[2]):
                 for j in range(self._Size[1]):
-                    for k in range(self._Size[2]):
+                    for i in range(self._Size[0]):
                         outf.write(pack('f', data[i][j][k]))
     def ReadData(self,filename,data,datatype=' '):
         fp=open(filename,'r')
@@ -211,8 +209,47 @@ class BVAnalysis(object):
 
     def GetPosSet(self):
         return self._poss
-
-
+    def CaluGlobalIndex(self,):
+        self.stop=False
+        self._Size.reverse()
+        centrepos=np.zeros(self._Size+[3])
+        self._Data=np.zeros(self._Size,dtype=np.double)
+        for k in range(self._Size[0]):
+            for j in range(self._Size[1]):
+                for i in range(self._Size[2]):
+                    centrepos[k][j][i][2]=k/(self._Size[0]-1.0)
+                    centrepos[k][j][i][1]=j/(self._Size[1]-1.0)
+                    centrepos[k][j][i][0]=i/(self._Size[2]-1.0)
+ 
+        self._poss=self._Struct.FracPosToCartPos(centrepos)
+        (distance,neighborsindex)=self._Struct.GetKNeighbors(self._poss, kn=8)
+              
+        site2atoms=None
+        for k in range(self._Size[0]):
+ 
+            for j in range(self._Size[1]):
+                for i in range(self._Size[2]):
+                    if self.stop:
+                        return 
+                    for dindex,index in enumerate(neighborsindex[k][j][i]):
+                        site2=self._Struct.GetSuperCellusites()[index]
+                        if site2.GetIronType()*self.ValenceOfMoveIon<0:
+                            for key in site2.GetElementsOccupy():
+                                if key!='Vac':
+                                    site2atoms=key
+                            if self.ValenceOfMoveIon>0:
+                                key="".join([self._MoveIon,str(self.ValenceOfMoveIon),site2atoms,str(site2.GetElementsOxiValue()[site2atoms])])
+                            else:
+                                key="".join([site2atoms,str(site2.GetElementsOxiValue()[site2atoms]),self._MoveIon,str(self.ValenceOfMoveIon)])
+                            if key in self._BVparam:
+                                (r,b)=self._BVparam[key][0]
+                                bv=np.exp((r-distance[k][j][i][dindex])/b)
+                                self.__Data['BVS'][k][j][i]=self.__Data['BVS'][k][j][i]+bv
+                            else:
+                                print('Not Find bvs param'+key)
+                        else:
+                            pass
+                            #print(site2.GetSiteLabel())                            
     def CaluBVSE(self,ProgressCall):
         if len(self._Struct._OxidationTable)==0:
             raise Exception("can't caculation bvs and Ea without atom oxi info !")
@@ -227,7 +264,6 @@ class BVAnalysis(object):
                     centrepos[i][j][k][2]=k/(self._Size[2]-1.0)
                     centrepos[i][j][k][1]=j/(self._Size[1]-1.0)
                     centrepos[i][j][k][0]=i/(self._Size[0]-1.0)
-#        print('tree search begin....')
         if ProgressCall:
             ProgressCall(10)
         self._poss=self._Struct.FracPosToCartPos(centrepos)
@@ -244,18 +280,20 @@ class BVAnalysis(object):
         for (atom,value) in atomsq.items():
             if value >0:
                 qsumcation=qsumcation+value
-            else:
+            elif value<0:
                 qsumanion=qsumanion+value
+            else:
+                qsumanion=0
+                qsumcation=0
         qsum=0.0
+        if self.ValenceOfMoveIon>0:
+            qsum=-qsumanion/qsumcation 
+        else:
+            qsum=-qsumcation/qsumanion          
         key1=self._MoveIon+str(self.ValenceOfMoveIon)  
         qm1=self.ValenceOfMoveIon/math.sqrt(self._Elementsparam[key1][3])
-        if self.ValenceOfMoveIon >0:
-            qsum=qsumanion/qsumcation            
-        else:
-            qsum=qsumcation/qsumanion
         rm1=self._Elementsparam[key1][6]
         for i in range(self._Size[0]):
-            #self._poss=self._Struct.FracPosToCartPos(centrepos[k])
             (distance,neighborsindex)=self._Struct.GetKNeighbors(self._poss[i], kn=128)
             if ProgressCall:
                 ProgressCall(10+i*90/(self._Size[0]-1))
@@ -287,9 +325,11 @@ class BVAnalysis(object):
                                         (r,b)=self._BVparam[key][0]
                                         Rcutoff=10.0
                                         if distance[j][k][dindex]<=Rcutoff:
+                                            #bv=np.exp((r0-distance[k][j][i][dindex])*alpha)
                                             bvs=np.exp((r-distance[j][k][dindex])/b)
                                             smin=np.exp((Rmin-distance[j][k][dindex])*alpha)
-                                            bvsdata=bvsdata+bvs
+                                            en_s=np.exp((Rmin-Rcutoff)*alpha)
+                                            bvsdata=bvsdata+bvs #*occupyvalue-((en_s-1)**2-1)
                                             data=data+((smin-1)**2-1)*occupyvalue
                                     else:
                                         if (key not in self._BVSEparam) :
@@ -307,19 +347,19 @@ class BVAnalysis(object):
                                         rm2=self._Elementsparam[key][6] 
                                         qm2=site2oxi/math.sqrt(self._Elementsparam[key][3])
                                         rm1m2=distance[j][k][dindex]
-                                        f=0.75
+                                        f=0.74
                                         if rm1m2>rm2:
                                             if rm1m2<Rcutoff:
-                                                cdata=cdata+occupyvalue*qm1*qm2/rm1m2*erfc(rm1m2/(f*(rm1+rm2))) #(-qsum)*
+                                                cdata=cdata+occupyvalue*qm1*qm2/rm1m2*erfc(rm1m2/(f*(rm1+rm2)))*qsum
                                                 bvelcdata=bvelcdata+occupyvalue*qm1*qm2/rm1m2*(erfc(rm1m2/(f*(rm1+rm2)))-erfc(Rcutoff/(f*(rm1+rm2))))
                                         else:
                                             cdata=300
                                             bvelcdata=300
                     self.__Data['BVSE'][i][j][k]=(0.5*D0*(data)+14.4*cdata)
                     self.__Data['BVS'][i][j][k]=bvsdata
-                    self.__Data['BVEL'][i][j][k]=(0.5*D0*(data)+14.4*bvelcdata)
-        #self.__Data['BVSE']=self.__Data['BVSE']/self.ValenceOfMoveIon
-        #self.__Data['BVEL']=self.__Data['BVEL']/self.ValenceOfMoveIon
+                    self.__Data['BVEL'][i][j][k]=(D0*(data)+14.4*bvelcdata)
+        self.__Data['BVSE']=self.__Data['BVSE']#/self.ValenceOfMoveIon
+        self.__Data['BVEL']=self.__Data['BVEL']#/self.ValenceOfMoveIon
         for key,data in self.__Data.items():
             self.__Max[key]=np.max(data)
             self.__Min[key]=np.min(data)
@@ -333,6 +373,8 @@ class BVAnalysis(object):
                                                  k*ashape[2]:(k+1)*ashape[2]]=\
                                                 data-self.__Min[key]
             self.Ea[key]=self.GetEa(self.ndata)
+
+        #print('BVSE Ea is {0},\nBVEL Ea is {1}'.format(self.BVSEEa,self.BVELEa))
         return True
     def  GetEa(self,data):
         return [self.GetConnectEa(data,1),\
@@ -365,8 +407,29 @@ class BVAnalysis(object):
                 for i in range(len(slic)):
                     if ((slic[i].start==0) and slic[i].stop==region.shape[i]):
                         connectnumber[index]=connectnumber[index]+1
-        return np.max(connectnumber)
+        return np.max(connectnumber)                
+    # def write_vti_file(self,filename='test.vti'):
+        # imageData = vtk.vtkImageData()
+        # imageData.SetDimensions(self._Size)
+        # self._reslen=0.1
+        # imageData.SetSpacing(self._reslen,self._reslen,self._reslen)
+        # imageData.AllocateScalars(vtk.VTK_FLOAT, 1)
+        # for k in range(self._Size[2]):
+            # for j in range(self._Size[1]):
+                # for i in range(self._Size[0]):
+                    # imageData.SetScalarComponentFromDouble(i, j,k, 0, self.__Data['BVSE'][i][j][k])
+        # writer = vtk.vtkXMLImageDataWriter()
+        # writer.SetFileName(filename)
+        # writer.SetInputData(imageData)
+        # writer.Write()
+        
     Data = property(get_data, set_data, del_data, "Data's docstring")
     Max = property(get_max, set_max, del_max, "Max's docstring")
     Min = property(get_min, set_min, del_min, "Min's docstring")
+# if __name__=="__main__":
+#     bvmdata=loadbvparam('bvmparam.data')
+#     
+#     print(bvmdata['Na'+'1'+'O'+'-2'])                            
+                            
 
+        

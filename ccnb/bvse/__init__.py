@@ -4,7 +4,7 @@ import ccnb.bvse.Structure
 import ccnb.bvse.BVAnalysis
 
 
-def bv_calculation(filename, moveion='Li',valenceofmoveion=1,resolution=0.2 ):
+def bv_calculation(filename, moveion='Li',valenceofmoveion=1,resolution=0.1 ):
     atoms = ase.io.read(filename, store_tags=True)
     struc = Structure.Structure()
     struc.GetAseStructure(atoms)

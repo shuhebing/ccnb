@@ -140,6 +140,7 @@ def get_non_equivalent_paths_between_latticesite(filename_CIF, filename_BVSE, fi
     mn.cal_nonequl_paths()
     mn.save_data(filename_CIF)
     return mn.paths_position
+    # return mn.paths_position，return mn.paths_position
 
 
 def get_non_equivalent_paths_between_voids(filename_CIF, filename_BVSE, filename_CAVD, energythreshold=None, moveion='Li'):
