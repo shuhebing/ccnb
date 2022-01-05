@@ -8,7 +8,7 @@ import copy
 import numpy.linalg as la
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
-from scipy.interpolate import spline
+from scipy.interpolate import make_interp_spline as spline
 
 
 def pathfind(start, end, V, n_images=21, dr=None, h=0.1, k=0.17, min_iter=100, max_iter=10000, max_tol=5e-6):
@@ -178,8 +178,8 @@ def showpathsenergy(p_e):
 
 
 if __name__ == "__main__":
-    filename_BVSE = 'LiAlSiO4\\icsd_32595.npy'
-    filename_CIF = 'LiAlSiO4\\icsd_32595.cif'
+    filename_BVSE = '.\example\\LiAlSiO4\\icsd_32595.npy'
+    filename_CIF = '.\\example\\LiAlSiO4\\icsd_32595.cif'
     struc = Structure.from_file(filename_CIF)
     energy = np.load(filename_BVSE)
     energy = energy - np.amin(energy)
