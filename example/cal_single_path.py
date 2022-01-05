@@ -8,7 +8,7 @@ import copy
 import numpy.linalg as la
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
-from scipy.interpolate import spline
+from scipy.interpolate import make_interp_spline as spline
 
 
 def pathfind(start, end, V, n_images=21, dr=None, h=0.1, k=0.17, min_iter=100, max_iter=10000, max_tol=5e-6):
@@ -171,7 +171,7 @@ def showpathsenergy(p_e):
         ycoords.append(p_e[j][1])
 
     x_new = np.linspace(min(xcoords), max(xcoords), 100)
-    y_smooth = spline(xcoords, ycoords, x_new)
+    y_smooth = spline(xcoords, ycoords)(x_new)
     plt.figure(figsize=(6, 4))  # 创建绘图对象
     plt.scatter(xcoords, ycoords, color='k', marker='o')
     plt.plot(x_new, y_smooth,linewidth=2, color ='k')
@@ -198,8 +198,9 @@ if __name__ == "__main__":
     struc = Structure.from_file(filename_CIF)
     energy = np.load(filename_BVSE)
     energy = energy - np.amin(energy)
-    endpoints = [
-                 [0.75873 , 0.78301,  0.38703],[0.50071 , 0.50837 , 0.25337 ],[ 0.25019 , 0.28335 , 0.11941],
+    #Li5->Li4->Li1->L2->Li3
+    endpoints = [[0.75873 , 0.78301,  0.38703],[0.50071 , 0.50837 , 0.25337 ],
+                 [ 0.25019 , 0.28335 , 0.11941],
                  [0.23286,  0.25683 , 0.44804],
                  [0.25439,  0.23225 , 0.76262]]
     p =calpath(endpoints, struc,energy,count_images=11)
