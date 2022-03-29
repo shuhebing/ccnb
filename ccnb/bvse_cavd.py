@@ -495,8 +495,8 @@ class MigrationNetwork(object):
                         if key_path not in self._nonequl_paths.keys(): # 判断是否在非等价路径集合里
                             self._nonequl_paths[key_path] = temppath
                         else:
-                            if operator.eq(temppath['phase_path'], [0, 0, 0]) and \  #和他同一label的路径
-                               not (operator.eq(self._nonequl_paths[key_path]['phase_path'], [0, 0, 0])):
+                            #和他同一label的路径
+                            if operator.eq(temppath['phase_path'], [0, 0, 0]) and not (operator.eq(self._nonequl_paths[key_path]['phase_path'], [0, 0, 0])):
                             #如果这条路径有和他同一label的路径，但是这条和他同一label的路径是跨包的，这条路径不跨包，就用它代替，尽可能保证选出的路径是不跨包的
                                 self._nonequl_paths[tuple(labels_path)] = temppath
 
@@ -548,7 +548,6 @@ class MigrationNetwork(object):
                 save_path = filename.split(".")[0]+'-'.join([str(i) for i in nonqul_id]) + '.png'
                 plt.savefig(save_path)
                 plt.show()
-
 
 def paths_to_poscar(filename_cavd, filename_cif, filename_bvse, energythreshold=None):
     voids_list = []

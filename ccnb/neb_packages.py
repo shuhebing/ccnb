@@ -14,7 +14,7 @@
 
 import numpy as np
 import sys, os
-from pymatgen import Structure
+from pymatgen.core import Structure
 
 from ccnb.zip_paths import zip_path
 from ccnb.vasp_inputs import vasp_inputs

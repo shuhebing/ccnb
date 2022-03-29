@@ -1,4 +1,4 @@
-from pymatgen import Structure
+from pymatgen.core import Structure
 import os, sys
 # from vasp_inputs import interpolate
 

@@ -2,7 +2,8 @@ import os
 from struct import unpack
 from monty.io import zopen
 import numpy as np
-from pymatgen import SETTINGS
+import pymatgen
+from pymatgen.core import SETTINGS
 from cavd.local_environment import CifParser_new
 from ccnb.bvse_cavd import MigrationNetwork
 from ccnb.mergecluster import Void, Channel

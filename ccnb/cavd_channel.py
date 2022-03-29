@@ -15,7 +15,7 @@ def cal_channel_cavd(filename, migrant, ntol=0.02, rad_flag=True, lower=0, upper
     stru = parser.get_structures(primitive=False)[0]
     species = [str(sp).replace("Specie ", "") for sp in stru.species]
     elements = [re.sub('[^a-zA-Z]', '', sp) for sp in species]
-    symm_number, symm_sybol = parser.get_symme()
+    #symm_number, symm_sybol = parser.get_symme()
     sitesym = parser.get_sym_opt()
     if migrant not in elements:
         raise ValueError("The input migrant ion not in the input structure! Please check it.")

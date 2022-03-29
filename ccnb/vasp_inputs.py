@@ -1,8 +1,7 @@
 from pymatgen.io.vasp.inputs import Incar, Kpoints, Potcar
-from pymatgen import Structure
+from pymatgen.core import Structure
 from functools import reduce
 import sys, os
-from pymatgen import Structure
 from pymatgen.core.sites import Site
 
 from ccnb.vasp_parse import parse_potcar

@@ -290,7 +290,7 @@ class  Structure(object):
             self.SetSpaceGroupno( atoms.info['_space_group_it_number' ])
         else:
             print('can not find group no')
-            return
+
         index=0
         self.__ABC=atoms.cell
         postions=list(zip(atoms.info['_atom_site_fract_x'],atoms.info['_atom_site_fract_y'],atoms.info['_atom_site_fract_z']))
