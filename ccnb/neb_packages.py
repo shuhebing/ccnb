@@ -37,14 +37,10 @@ class neb_packages(object):
         num=0
         #print('path:',path)
         for coord in path:
-            for index in range(len(coord)):
-                #print('i:',coord[index])
-                i = coord[index]
-                coord[index] = i+1 if i <0 else i-1 if i>1 else i
-                #print('be:',coord[index])
-            if(num%2==0):
-                new_path.append(coord)
-            num=num+1
+            coord=np.mod(coord,1)
+            #if(num%2==0):
+            new_path.append(coord)
+            #num=num+1
         #print('new_path:',new_path)
         return new_path
 
@@ -59,6 +55,7 @@ class neb_packages(object):
             os.mkdir(self.dir+'/paths')
         num=0
         for path in self.paths:
+            #处理坐标周期性问题
             p = self.deal_path_periodicity(path)
             dir=self.dir+'/paths/path_'+str(num)
             #dir=self.paths_dir+'/path_'+str(num)
@@ -68,7 +65,7 @@ class neb_packages(object):
             struc.to(filename=dir+'/POSCAR')
             for i in range(1,len(p)-1):
                 struc.insert(0, 'He', p[i])
-            struc.to(filename=dir+'/POSCAR_path')
+            struc.to(fmt='cif',filename=dir+'/path.cif')
             struc1 = Structure.from_file(dir+'/POSCAR_base')
             struc1.insert(0, self.migration_ion, path[0]) #at the first site insert the interval point
             struc1.to(filename=dir+"/POSCAR1")

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from struct import unpack
 from monty.io import zopen
 import numpy as np
@@ -10,7 +11,6 @@ from ccnb.mergecluster import Void, Channel
 from ccnb.neb_packages import neb_packages
 from ccnb.bvse import bv_calculation
 from ccnb.cavd_channel import cal_channel_cavd
-
 
 def get_channel_cavd(filename, migrant, ntol=0.02, rad_flag=True, lower=0, upper=10.0, rad_dict=None):
     """
@@ -140,6 +140,7 @@ def get_non_equivalent_paths_between_latticesite(filename_CIF, filename_BVSE, fi
                           energythreshold=energythreshold, iscalnonequalchannels=False)
     mn.cal_nonequl_paths()
     mn.save_data(filename_CIF)
+    mn.showenergy(filename_CIF)
     return mn.paths_position
     # return mn.paths_position，return mn.paths_position
 
@@ -155,9 +156,11 @@ def get_non_equivalent_paths_between_voids(filename_CIF, filename_BVSE, filename
 
 def configure_neb_packet(filename_CIF, mep, moveion="Li"):
     struc1 = load_struc(filename_CIF)
-    struc1.to(fmt='POSCAR', filename=os.path.join(filename_CIF.split('/')[0], 'POSCAR'))
+    path_cif_file=Path(filename_CIF).parent.joinpath('POSCAR')
+
+    struc1.to(fmt='POSCAR', filename=str(path_cif_file))
     file_prefix = filename_CIF.split('.')[0]
-    SETTINGS['PMG_VASP_PSP_DIR'] = os.path.abspath("..") + '\ccnb\psp_resources'
+    #SETTINGS['PMG_VASP_PSP_DIR'] = os.path.abspath("..") + '\ccnb\psp_resources'
     n = neb_packages()
     n.init(file_prefix, moveion)
     n.from_list(mep)

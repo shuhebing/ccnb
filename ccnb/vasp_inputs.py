@@ -110,7 +110,7 @@ class vasp_inputs(object):
         self.incar(neb)
         self.kpoints()
         self.lsf(neb)
-        path_poscar(dir+'/POSCAR1', dir+'/POSCAR2', dir+'/POSCAR_path')
+        path_poscar(dir+'/POSCAR1', dir+'/POSCAR2', dir+'/path.cif')
     
 #path includes the start and end sites
 def interpolate(dir, struc1, struc2, path):

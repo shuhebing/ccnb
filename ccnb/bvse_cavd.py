@@ -487,7 +487,7 @@ class MigrationNetwork(object):
                     temppath['voidid_path'] = voids_path  # 路径上每一间隙点的编号
                     temppath['voidcoord_path'] = [self._voids[id].coord for id in voids_path] #路径上每一间隙点的坐标
                     temppath['barrier_path'] = None
-                    if tag0:
+                    if tag0 and len(labels_path)>0:
                         if labels_path[0] < labels_path[-1]: #对起始点排序，编号小的在前，
                             key_path = tuple(labels_path)
                         else:
