@@ -9,6 +9,7 @@ from cavd.local_environment import CifParser_new
 
 
 class Void(object):
+
     def __init__(self):
         self.id = None
         self.label = None
@@ -18,6 +19,7 @@ class Void(object):
 
 
 class Channel(object):
+
     def __init__(self):
         self.start = None
         self.end = None
@@ -30,7 +32,14 @@ class Channel(object):
 
 
 class MergeCluster(object):
-    def __init__(self, voids_dict, channels_dict, structure, bvse, filename_cif, clusterradii=0.5):
+
+    def __init__(self,
+                 voids_dict,
+                 channels_dict,
+                 structure,
+                 bvse,
+                 filename_cif,
+                 clusterradii=0.5):
         self._struc = structure
         self._energy = bvse
         self._voids = voids_dict
@@ -103,7 +112,8 @@ class MergeCluster(object):
         x = np.linspace(0, 1, self._energy.shape[0])
         y = np.linspace(0, 1, self._energy.shape[1])
         z = np.linspace(0, 1, self._energy.shape[2])
-        interpolating_function = RegularGridInterpolator((x, y, z), self._energy)
+        interpolating_function = RegularGridInterpolator((x, y, z),
+                                                         self._energy)
         for i in range(len(point)):
             if point[i] < 0.0:
                 point[i] += 1
@@ -118,12 +128,25 @@ class MergeCluster(object):
         """
         for void_id, void in self._voids.items():
             void.energy = self.cal_point_energy(void.coord)
-        small_voids = [void_id for void_id, void in self._voids.items() if void.radii < radii_threadhold]
-        self._voids = {void_id: void for void_id, void in self._voids.items() if void.radii >= radii_threadhold}
-        self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
-                          if channel.start not in small_voids and channel.end not in small_voids}
-        self._channels = {channel_id: channel for channel_id, channel in self._channels.items()
-                          if channel.radii >= radii_threadhold}
+        small_voids = [
+            void_id for void_id, void in self._voids.items()
+            if void.radii < radii_threadhold
+        ]
+        self._voids = {
+            void_id: void
+            for void_id, void in self._voids.items()
+            if void.radii >= radii_threadhold
+        }
+        self._channels = {
+            channel_id: channel
+            for channel_id, channel in self._channels.items() if
+            channel.start not in small_voids and channel.end not in small_voids
+        }
+        self._channels = {
+            channel_id: channel
+            for channel_id, channel in self._channels.items()
+            if channel.radii >= radii_threadhold
+        }
 
     def find_clusters(self):
         """
@@ -135,7 +158,9 @@ class MergeCluster(object):
         for void in voids_list:
             coords.append(self.fac2cart(void.coord))
         coord_tree = cKDTree(coords)
-        all_pair_voids = [i for i in coord_tree.query_pairs(r=self._clusterradii)]
+        all_pair_voids = [
+            i for i in coord_tree.query_pairs(r=self._clusterradii)
+        ]
         for i in all_pair_voids:
             pair_voids.append([voids_list[i[0]].id, voids_list[i[1]].id])
         if len(pair_voids) > 0:
@@ -153,11 +178,14 @@ class MergeCluster(object):
                     temp_coord[0] += self.fac2cart(self._voids[subv].coord)[0]
                     temp_coord[1] += self.fac2cart(self._voids[subv].coord)[1]
                     temp_coord[2] += self.fac2cart(self._voids[subv].coord)[2]
-                centre_coord = self.cart2fac([temp_coord[0]/len(subv_in),
-                                              temp_coord[1] / len(subv_in),
-                                              temp_coord[2] / len(subv_in)])
+                centre_coord = self.cart2fac([
+                    temp_coord[0] / len(subv_in), temp_coord[1] / len(subv_in),
+                    temp_coord[2] / len(subv_in)
+                ])
                 for i in range(len(subv_in)):
-                    if self.get_period_dis(self._voids[subv_in[i]].coord, centre_coord) > self._clusterradii+0.2:
+                    if self.get_period_dis(
+                            self._voids[subv_in[i]].coord,
+                            centre_coord) > self._clusterradii + 0.2:
                         subv_out.append(subv_in[i])
                 for subv in subv_out:
                     subv_in.remove(subv)
@@ -165,15 +193,18 @@ class MergeCluster(object):
                 if len(subv_out) > 1:
                     pair_subvout = []
                     for i in range(len(subv_out)):
-                        for j in range(i+1, len(subv_out)):
-                            if self.get_period_dis(self._voids[subv_out[i]].coord,
-                                                   self._voids[subv_out[j]].coord) < self._clusterradii:
+                        for j in range(i + 1, len(subv_out)):
+                            if self.get_period_dis(
+                                    self._voids[subv_out[i]].coord,
+                                    self._voids[subv_out[j]].coord
+                            ) < self._clusterradii:
                                 pair_subvout.append([subv_out[i], subv_out[j]])
                     if len(pair_subvout) > 0:
                         graph_subvout = nx.Graph()
                         for e in pair_subvout:
                             graph_subvout.add_edge(e[0], e[1])
-                        for sc in nx.connected_component_subgraphs(graph_subvout):
+                        for sc in nx.connected_component_subgraphs(
+                                graph_subvout):
                             queue_clusters.append(list(sc.nodes))
         print("Number of clusters", len(self._clusters))
         print(self._clusters)
@@ -184,7 +215,10 @@ class MergeCluster(object):
         """
         mignet = nx.Graph()
         for void_id, void in self._voids.items():
-            mignet.add_node(void.id, label=void.label, coord=void.coord, radii=void.radii)
+            mignet.add_node(void.id,
+                            label=void.label,
+                            coord=void.coord,
+                            radii=void.radii)
         for e_id, e in self._channels.items():
             if e.start < e.end:
                 phase1 = e.phase
@@ -192,7 +226,12 @@ class MergeCluster(object):
                 for i in range(3):
                     if phase1[i] != 0:
                         phase2[i] = -1 * phase1[i]
-                mignet.add_edge(e.start, e.end, phase1=phase1, phase2=phase2, coord1=e.coord, radii1=e.radii,
+                mignet.add_edge(e.start,
+                                e.end,
+                                phase1=phase1,
+                                phase2=phase2,
+                                coord1=e.coord,
+                                radii1=e.radii,
                                 dist1=e.dist)
         if len(self._clusters) > 0:
             for i in range(len(self._clusters)):
@@ -219,16 +258,27 @@ class MergeCluster(object):
                         else:
                             end = centervoid_id
                             start = nearvoid
-                        tempedges.append({"from": start, "to": end,
-                                          "phase1": mignet[centervoid_id][nearvoid]['phase1'],
-                                          "phase2": mignet[centervoid_id][nearvoid]['phase2'],
-                                          "coord1": mignet[centervoid_id][nearvoid]['coord1'],
-                                          "radii1": mignet[centervoid_id][nearvoid]['radii1'],
-                                          "dist1": mignet[centervoid_id][nearvoid]['dist1']})
+                        tempedges.append({
+                            "from":
+                            start,
+                            "to":
+                            end,
+                            "phase1":
+                            mignet[centervoid_id][nearvoid]['phase1'],
+                            "phase2":
+                            mignet[centervoid_id][nearvoid]['phase2'],
+                            "coord1":
+                            mignet[centervoid_id][nearvoid]['coord1'],
+                            "radii1":
+                            mignet[centervoid_id][nearvoid]['radii1'],
+                            "dist1":
+                            mignet[centervoid_id][nearvoid]['dist1']
+                        })
                 for id in self._clusters[i]:
                     if id != center_void.id:
                         for nearvoid in list(mignet.adj[id].keys()):
-                            if nearvoid not in self._clusters[i] and nearvoid not in nearvoids:
+                            if nearvoid not in self._clusters[
+                                    i] and nearvoid not in nearvoids:
                                 if centervoid_id < nearvoid:
                                     start = centervoid_id
                                     end = nearvoid
@@ -236,30 +286,51 @@ class MergeCluster(object):
                                     end = centervoid_id
                                     start = nearvoid
                                 if id < nearvoid:
-                                    ph_cen_nearvoid = mignet[id][nearvoid]['phase1']
-                                    ph_nearvoid_cen = mignet[id][nearvoid]['phase2']
+                                    ph_cen_nearvoid = mignet[id][nearvoid][
+                                        'phase1']
+                                    ph_nearvoid_cen = mignet[id][nearvoid][
+                                        'phase2']
                                 else:
-                                    ph_cen_nearvoid = mignet[id][nearvoid]['phase2']
-                                    ph_nearvoid_cen = mignet[id][nearvoid]['phase1']
-                                if centervoid_id<nearvoid:
+                                    ph_cen_nearvoid = mignet[id][nearvoid][
+                                        'phase2']
+                                    ph_nearvoid_cen = mignet[id][nearvoid][
+                                        'phase1']
+                                if centervoid_id < nearvoid:
                                     ph1 = ph_cen_nearvoid
                                     ph2 = ph_nearvoid_cen
                                 else:
                                     ph2 = ph_cen_nearvoid
                                     ph1 = ph_nearvoid_cen
-                                tempedges.append({"from": start, "to": end,
-                                                  "phase1": ph1,
-                                                  "phase2": ph2,
-                                                  "coord1": mignet[id][nearvoid]['coord1'],
-                                                  "radii1": mignet[id][nearvoid]['radii1'],
-                                                  "dist1": mignet[id][nearvoid]['dist1']})
+                                tempedges.append({
+                                    "from":
+                                    start,
+                                    "to":
+                                    end,
+                                    "phase1":
+                                    ph1,
+                                    "phase2":
+                                    ph2,
+                                    "coord1":
+                                    mignet[id][nearvoid]['coord1'],
+                                    "radii1":
+                                    mignet[id][nearvoid]['radii1'],
+                                    "dist1":
+                                    mignet[id][nearvoid]['dist1']
+                                })
                 for void in self._clusters[i]:
                     mignet.remove_node(void)
-                mignet.add_node(center_void.id, label=center_void.label, coord=center_void.coord,
+                mignet.add_node(center_void.id,
+                                label=center_void.label,
+                                coord=center_void.coord,
                                 radii=center_void.radii)
                 for e in tempedges:
-                    mignet.add_edge(e['from'], e['to'],  phase1=e['phase1'], phase2=e['phase2'],
-                                    coord1=e['coord1'], radii1=e['radii1'], dist1=e['dist1'])
+                    mignet.add_edge(e['from'],
+                                    e['to'],
+                                    phase1=e['phase1'],
+                                    phase2=e['phase2'],
+                                    coord1=e['coord1'],
+                                    radii1=e['radii1'],
+                                    dist1=e['dist1'])
         for nd in mignet.nodes():
             tempvoid = Void()
             tempvoid.id = nd
@@ -295,8 +366,8 @@ class MergeCluster(object):
         scaled %= 1.0
         scaled %= 1.0
         np.set_printoptions(suppress=True)
-        tags = -np.ones((len(scaled),), dtype=int)
-        tagdis = 100 * np.ones((len(scaled),), dtype=float)
+        tags = -np.ones((len(scaled), ), dtype=int)
+        tagdis = 100 * np.ones((len(scaled), ), dtype=float)
         rot, trans = spg.spacegroup.parse_sitesym(sitesym)
         siteskdTree = cKDTree(scaled)
         for i in range(len(scaled)):
@@ -333,20 +404,22 @@ class MergeCluster(object):
         Save the merged interstices and channel fragments to a net file
         :param filename: output will be written to a file
         """
-        with open(filename.split(".")[0]+'_mergecluster.net', 'w') as f:
+        with open(filename.split(".")[0] + '_mergecluster.net', 'w') as f:
             f.write('Interstitial table:\n')
             for void in self.mergedvoids:
-                f.write(str(void.id)+"\t"+str(void.label)+"\t "
-                        + str(void.coord[0]) + " " + str(void.coord[1]) + " "+str(void.coord[2]) + "\t "
-                        + str(void.radii)
-                        + "\n")
+                f.write(
+                    str(void.id) + "\t" + str(void.label) + "\t " +
+                    str(void.coord[0]) + " " + str(void.coord[1]) + " " +
+                    str(void.coord[2]) + "\t " + str(void.radii) + "\n")
             f.write('Connection table:\n')
             for channel in self.mergedchannels:
-                f.write(str(channel.start) + "\t " + str(channel.end) + "\t " + str(int(channel.phase[0])) + " "
-                        + str(int(channel.phase[1])) + " " + str(int(channel.phase[2])) + "\t "
-                        + str(channel.coord[0]) + " "
-                        + str(channel.coord[1]) + " " + str(channel.coord[2]) + "\t "
-                        + str(channel.radii)  + "\n")
+                f.write(
+                    str(channel.start) + "\t " + str(channel.end) + "\t " +
+                    str(int(channel.phase[0])) + " " +
+                    str(int(channel.phase[1])) + " " +
+                    str(int(channel.phase[2])) + "\t " +
+                    str(channel.coord[0]) + " " + str(channel.coord[1]) + " " +
+                    str(channel.coord[2]) + "\t " + str(channel.radii) + "\n")
 
     def get_clusters(self):
         """
@@ -357,9 +430,9 @@ class MergeCluster(object):
         for cluster in self._clusters:
             cluster_temp = []
             for void_id in cluster:
-                cluster_temp.append({"void_id": void_id, "void_coord": self._voids[void_id].coord})
+                cluster_temp.append({
+                    "void_id": void_id,
+                    "void_coord": self._voids[void_id].coord
+                })
             clusters.append(cluster_temp)
         return clusters
-
-
-

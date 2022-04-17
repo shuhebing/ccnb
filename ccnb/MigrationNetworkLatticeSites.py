@@ -11,7 +11,15 @@ from ccnb.bvse_cavd import MigrationPath
 
 
 class MigrationNetworkLatticeSites(object):
-    def __init__(self, struc, energy, voids_dict, channels_dict, filename_CIF, moveion='Li',ismergecluster=False):
+
+    def __init__(self,
+                 struc,
+                 energy,
+                 voids_dict,
+                 channels_dict,
+                 filename_CIF,
+                 moveion='Li',
+                 ismergecluster=False):
         self._moveion = moveion
         self._voids = {}
         self._channels = {}
@@ -24,7 +32,11 @@ class MigrationNetworkLatticeSites(object):
         self.all_paths = {}
         self._id_barrier_phase = {}
         if ismergecluster:
-            mergevoid = mc.MergeCluster(voids_dict, channels_dict, self._struc, self._energy, filename_CIF,
+            mergevoid = mc.MergeCluster(voids_dict,
+                                        channels_dict,
+                                        self._struc,
+                                        self._energy,
+                                        filename_CIF,
                                         clusterradii=0.5)
             mergevoid.to_net(filename_CIF)
             for void in mergevoid.mergedvoids:
@@ -40,14 +52,17 @@ class MigrationNetworkLatticeSites(object):
         for void_id, void in self._voids.items():
             void.energy = self.cal_point_energy(void.coord)
         for channel_id, channel in self._channels.items():
-            channel.dist = self.get_dis(self._voids[channel.start].coord, self._voids[channel.end].coord)
+            channel.dist = self.get_dis(self._voids[channel.start].coord,
+                                        self._voids[channel.end].coord)
         i = 0
         for channel_id, channel in self._channels.items():
-            if self._voids[channel.start].label < self._voids[channel.end].label:
-                key = (self._voids[channel.start].label, self._voids[channel.end].label,
-                       round(channel.dist, 1))
+            if self._voids[channel.start].label < self._voids[
+                    channel.end].label:
+                key = (self._voids[channel.start].label,
+                       self._voids[channel.end].label, round(channel.dist, 1))
             else:
-                key = (self._voids[channel.end].label, self._voids[channel.start].label,
+                key = (self._voids[channel.end].label,
+                       self._voids[channel.start].label,
                        round(channel.dist, 1))
             if key not in self._nonequalchannels.keys():
                 channel.label = i
@@ -59,9 +74,15 @@ class MigrationNetworkLatticeSites(object):
     def cal_paths(self):
         self._mignet = nx.DiGraph()
         for id_void, void in self._voids.items():
-            self._mignet.add_node(void.id, label=void.label, coord=void.coord, energy=void.energy)
+            self._mignet.add_node(void.id,
+                                  label=void.label,
+                                  coord=void.coord,
+                                  energy=void.energy)
         for channel_id, channel in self._channels.items():
-            self._mignet.add_edge(channel.start, channel.end, label=channel.label, phase=channel.phase)
+            self._mignet.add_edge(channel.start,
+                                  channel.end,
+                                  label=channel.label,
+                                  phase=channel.phase)
         self.cal_paths_cavd()
         self.cal_noneqpaths_bvse()
         for key_path, path in self.all_paths.items():
@@ -83,7 +104,7 @@ class MigrationNetworkLatticeSites(object):
             site["neighbor"] = []
             site['barriers'] = []
             site['phases'] = []
-            for endpoints,barrier_phase in self._id_barrier_phase.items():
+            for endpoints, barrier_phase in self._id_barrier_phase.items():
                 if endpoints[0] == site['id_CAVD']:
                     site["neighbor"].append(endpoints[1])
                     site['barriers'].append(barrier_phase[0])
@@ -106,7 +127,8 @@ class MigrationNetworkLatticeSites(object):
         x = np.linspace(0, 1, self._energy.shape[0])
         y = np.linspace(0, 1, self._energy.shape[1])
         z = np.linspace(0, 1, self._energy.shape[2])
-        interpolating_function = RegularGridInterpolator((x, y, z), self._energy)
+        interpolating_function = RegularGridInterpolator((x, y, z),
+                                                         self._energy)
         point = [math.modf(i)[0] for i in point]
         for i in range(len(point)):
             if point[i] < 0.0:
@@ -142,8 +164,10 @@ class MigrationNetworkLatticeSites(object):
                             temp_position['id_CAVD'] = void.id
                             if mini_dis < 0.01:
                                 break
-                    temp_position['fracoord'] = self._voids[temp_position['id_CAVD']].coord
-                    temp_position['cartcoord'] = self.fac2cart(temp_position['fracoord'])
+                    temp_position['fracoord'] = self._voids[
+                        temp_position['id_CAVD']].coord
+                    temp_position['cartcoord'] = self.fac2cart(
+                        temp_position['fracoord'])
                     if temp_position['label'] not in labels_positions:
                         labels_positions.append(temp_position['label'])
                     positions_moveion.append(temp_position)
@@ -151,11 +175,19 @@ class MigrationNetworkLatticeSites(object):
                     self._sites[temp_position['id_CAVD']] = temp_position
         for i in range(len(positions_moveion) - 1):
             for j in range(i + 1, len(positions_moveion)):
-                key = (positions_moveion[j]['atom_site_label'], positions_moveion[i]['atom_site_label'])
-                if positions_moveion[i]['label'] < positions_moveion[j]['label']:
-                    value = [positions_moveion[i]['id_CAVD'], positions_moveion[j]['id_CAVD']]
+                key = (positions_moveion[j]['atom_site_label'],
+                       positions_moveion[i]['atom_site_label'])
+                if positions_moveion[i]['label'] < positions_moveion[j][
+                        'label']:
+                    value = [
+                        positions_moveion[i]['id_CAVD'],
+                        positions_moveion[j]['id_CAVD']
+                    ]
                 else:
-                    value = [positions_moveion[j]['id_CAVD'], positions_moveion[i]['id_CAVD']]
+                    value = [
+                        positions_moveion[j]['id_CAVD'],
+                        positions_moveion[i]['id_CAVD']
+                    ]
                 if key not in positions_pair.keys():
                     positions_pair[key] = [value]
                 else:
@@ -163,33 +195,50 @@ class MigrationNetworkLatticeSites(object):
         for pair_label, position_pairs in positions_pair.items():
             for position_pair in position_pairs:
                 try:
-                    voids_path = list(nx.shortest_path(self._mignet,
-                                                          source=position_pair[0], target=position_pair[1]))
+                    voids_path = list(
+                        nx.shortest_path(self._mignet,
+                                         source=position_pair[0],
+                                         target=position_pair[1]))
                 except nx.NetworkXNoPath:
                     voids_path = []
                 if 0 < len(voids_path) < 7:
-                    temppath = {'phase_path': [0, 0, 0], 'phases_path_segment':[], 'points_path':[],
-                                'energys_path':[], 'pair_label': pair_label}
+                    temppath = {
+                        'phase_path': [0, 0, 0],
+                        'phases_path_segment': [],
+                        'points_path': [],
+                        'energys_path': [],
+                        'pair_label': pair_label
+                    }
                     labels_path = []
-                    for i in range(len(voids_path)-1):
-                        labels_path.append(self._mignet[voids_path[i]][voids_path[i+1]]['label'])
-                        temppath['phases_path_segment'].append(self._mignet[voids_path[i]][voids_path[i+1]]['phase'])
-                        temppath['phase_path'][0] += self._mignet[voids_path[i]][voids_path[i+1]]['phase'][0]
-                        temppath['phase_path'][1] += self._mignet[voids_path[i]][voids_path[i+1]]['phase'][1]
-                        temppath['phase_path'][2] += self._mignet[voids_path[i]][voids_path[i+1]]['phase'][2]
+                    for i in range(len(voids_path) - 1):
+                        labels_path.append(self._mignet[voids_path[i]][
+                            voids_path[i + 1]]['label'])
+                        temppath['phases_path_segment'].append(self._mignet[
+                            voids_path[i]][voids_path[i + 1]]['phase'])
+                        temppath['phase_path'][0] += self._mignet[
+                            voids_path[i]][voids_path[i + 1]]['phase'][0]
+                        temppath['phase_path'][1] += self._mignet[
+                            voids_path[i]][voids_path[i + 1]]['phase'][1]
+                        temppath['phase_path'][2] += self._mignet[
+                            voids_path[i]][voids_path[i + 1]]['phase'][2]
                     tag0 = True
-                    voidlabels_path = [self._mignet.node[voids_path[0]]["label"]]
-                    for i in range(1, len(voids_path)-1):
+                    voidlabels_path = [
+                        self._mignet.node[voids_path[0]]["label"]
+                    ]
+                    for i in range(1, len(voids_path) - 1):
                         lab = self._mignet.node[voids_path[i]]["label"]
                         if lab not in labels_positions:
                             voidlabels_path.append(lab)
                         else:
                             tag0 = False
                             break
-                    voidlabels_path.append(self._mignet.node[voids_path[-1]]["label"])
+                    voidlabels_path.append(
+                        self._mignet.node[voids_path[-1]]["label"])
                     temppath['voidlabels_path'] = voidlabels_path
                     temppath['voidid_path'] = voids_path
-                    temppath['voidcoord_path'] = [self._voids[id].coord for id in voids_path]
+                    temppath['voidcoord_path'] = [
+                        self._voids[id].coord for id in voids_path
+                    ]
                     temppath['barrier_path'] = None
                     if tag0:
                         if labels_path[0] < labels_path[-1]:
@@ -197,19 +246,22 @@ class MigrationNetworkLatticeSites(object):
                         else:
                             key_path = tuple(labels_path[::-1])
                         temppath['key_path'] = key_path
-                        self.all_paths[(voids_path[0], voids_path[-1])] = temppath
+                        self.all_paths[(voids_path[0],
+                                        voids_path[-1])] = temppath
                         if key_path not in self._nonequl_paths.keys():
                             self._nonequl_paths[key_path] = temppath
                         else:
                             if operator.eq(temppath['phase_path'], [0, 0, 0]) and \
                                not (operator.eq(self._nonequl_paths[key_path]['phase_path'], [0, 0, 0])):
-                                self._nonequl_paths[tuple(labels_path)] = temppath
+                                self._nonequl_paths[tuple(
+                                    labels_path)] = temppath
 
     def cal_noneqpaths_bvse(self):
         for path in self._nonequl_paths.values():
             coords_path = path['voidcoord_path']
             phases_path = path['phases_path_segment']
-            mp = MigrationPath(coords_path, phases_path, self._energy, self._struc)
+            mp = MigrationPath(coords_path, phases_path, self._energy,
+                               self._struc)
             path['points_path'] = mp.path
             path['energys_path'] = mp.path_energy
             energys = []
@@ -221,11 +273,15 @@ class MigrationNetworkLatticeSites(object):
                     i_max = i
                     break
             if path['voidlabels_path'][0] < path['voidlabels_path'][0]:
-                path['barrier_begin_to_end'] = mp.energy_max - min(energys[:i_max])
-                path['barrier_end_to_begin'] = mp.energy_max - min(energys[i_max:])
+                path['barrier_begin_to_end'] = mp.energy_max - min(
+                    energys[:i_max])
+                path['barrier_end_to_begin'] = mp.energy_max - min(
+                    energys[i_max:])
             else:
-                path['barrier_begin_to_end'] = mp.energy_max - min(energys[i_max:])
-                path['barrier_end_to_begin'] = mp.energy_max - min(energys[:i_max])
+                path['barrier_begin_to_end'] = mp.energy_max - min(
+                    energys[i_max:])
+                path['barrier_end_to_begin'] = mp.energy_max - min(
+                    energys[:i_max])
 
     def save_data(self, filename):
         """
@@ -239,17 +295,20 @@ class MigrationNetworkLatticeSites(object):
             for site in self._sites.values():
                 print(site)
                 f.write('Site_number ' + str(site['id_CAVD']) + '\n')
-                f.write('Cartesian_coordinates ' + str(site['cartcoord'][0]) + ' ' +
-                        str(site['cartcoord'][1]) + ' ' +str(site['cartcoord'][2])+ '\n')
-                f.write('Normalized_coordinates ' + str(site['fracoord'][0]) + ' ' +
-                        str(site['fracoord'][1]) + ' ' + str(site['fracoord'][2]) + '\n')
+                f.write('Cartesian_coordinates ' + str(site['cartcoord'][0]) +
+                        ' ' + str(site['cartcoord'][1]) + ' ' +
+                        str(site['cartcoord'][2]) + '\n')
+                f.write('Normalized_coordinates ' + str(site['fracoord'][0]) +
+                        ' ' + str(site['fracoord'][1]) + ' ' +
+                        str(site['fracoord'][2]) + '\n')
                 f.write('Neighbor_sites')
                 for nb in site['neighbor']:
                     f.write(' ' + str(nb))
                 f.write('\n')
                 f.write('Neighbor_sites_phase')
                 for ph in site['phases']:
-                    f.write(' ' + str(ph[0]) + ' ' + str(ph[1]) + ' ' + str(ph[2]) + ',')
+                    f.write(' ' + str(ph[0]) + ' ' + str(ph[1]) + ' ' +
+                            str(ph[2]) + ',')
                 f.write('\n')
                 f.write('Barrier')
                 for ba in site['barriers']:
@@ -257,5 +316,3 @@ class MigrationNetworkLatticeSites(object):
                 f.write('\n')
                 f.write('Site_types ' + str(site['atom_site_label']) + '\n')
                 f.write('\n')
-
-

@@ -11,7 +11,6 @@
 #out file:
 #neb packages for vasp:include POSCAR1 POSCAR2 (start and end structure nedd to relax)
 
-
 import numpy as np
 import sys, os
 from pymatgen.core import Structure
@@ -19,25 +18,26 @@ from pymatgen.core import Structure
 from ccnb.zip_paths import zip_path
 from ccnb.vasp_inputs import vasp_inputs
 
+
 class neb_packages(object):
     #dir: the poscar dir
     #filename: structure name,such as icsd_5
-    def init(self, filename, ion = 'Li'):
-        self.nelect=128 ######notice this
-        self.migration_ion=ion
+    def init(self, filename, ion='Li'):
+        self.nelect = 128  ######notice this
+        self.migration_ion = ion
         #self.paths=[] #all paths from start to end
-        self.filename=filename
+        self.filename = filename
         self.dir = os.path.dirname(filename)
-        struc = Structure.from_file(self.dir+'/POSCAR')
+        struc = Structure.from_file(self.dir + '/POSCAR')
         self.vi = vasp_inputs(struc)
-        self.vi.set_incar({'nelect':self.nelect})
+        self.vi.set_incar({'nelect': self.nelect})
 
     def deal_path_periodicity(self, path):
-        new_path=[]
-        num=0
+        new_path = []
+        num = 0
         #print('path:',path)
         for coord in path:
-            coord=np.mod(coord,1)
+            coord = np.mod(coord, 1)
             #if(num%2==0):
             new_path.append(coord)
             #num=num+1
@@ -45,38 +45,42 @@ class neb_packages(object):
         return new_path
 
     def from_file(self, path_file):
-        self.paths=np.load(path_file)
+        self.paths = np.load(path_file)
 
     def from_list(self, paths):
-        self.paths=paths
-    
+        self.paths = paths
+
     def data_parse(self):
-        if not os.path.exists(self.dir+'/paths'):
-            os.mkdir(self.dir+'/paths')
-        num=0
+        if not os.path.exists(self.dir + '/paths'):
+            os.mkdir(self.dir + '/paths')
+        num = 0
         for path in self.paths:
             #处理坐标周期性问题
             p = self.deal_path_periodicity(path)
-            dir=self.dir+'/paths/path_'+str(num)
+            dir = self.dir + '/paths/path_' + str(num)
             #dir=self.paths_dir+'/path_'+str(num)
             if self.judge_site(p[0], p[-1], dir):
                 continue
-            struc = Structure.from_file(self.dir+'/POSCAR')
-            struc.to(filename=dir+'/POSCAR')
-            for i in range(1,len(p)-1):
+            struc = Structure.from_file(self.dir + '/POSCAR')
+            struc.to(filename=dir + '/POSCAR')
+            for i in range(1, len(p) - 1):
                 struc.insert(0, 'He', p[i])
-            struc.to(fmt='cif',filename=dir+'/path.cif')
-            struc1 = Structure.from_file(dir+'/POSCAR_base')
-            struc1.insert(0, self.migration_ion, path[0]) #at the first site insert the interval point
-            struc1.to(filename=dir+"/POSCAR1")
-            struc2 = Structure.from_file(dir+'/POSCAR_base')
-            struc2.insert(0, self.migration_ion, path[-1]) #at the first site insert the interval point
-            struc2.to(filename=dir+"/POSCAR2")
-            self.vi.set_incar({'images':len(p)-2})
+            struc.to(fmt='cif', filename=dir + '/path.cif')
+            struc1 = Structure.from_file(dir + '/POSCAR_base')
+            struc1.insert(
+                0, self.migration_ion,
+                path[0])  #at the first site insert the interval point
+            struc1.to(filename=dir + "/POSCAR1")
+            struc2 = Structure.from_file(dir + '/POSCAR_base')
+            struc2.insert(
+                0, self.migration_ion,
+                path[-1])  #at the first site insert the interval point
+            struc2.to(filename=dir + "/POSCAR2")
+            self.vi.set_incar({'images': len(p) - 2})
 
             self.vi.inputs(dir, True)
-            num=num+1
-        zip_path(self.dir+'/paths', self.filename+ '_neb_paths.zip')
+            num = num + 1
+        zip_path(self.dir + '/paths', self.filename + '_neb_paths.zip')
 
     #product the base poscar for insert site
     def judge_site(self, p1, p2, dir):
@@ -84,24 +88,24 @@ class neb_packages(object):
         end = None
         # print('start:%s', p1)
         # print('end:%s', p2)
-        struc = Structure.from_file(self.dir+'/POSCAR')
+        struc = Structure.from_file(self.dir + '/POSCAR')
         struc.insert(0, self.migration_ion, p2)
         struc.insert(0, self.migration_ion, p1)
-        dis = struc.get_distance(0,1)
+        dis = struc.get_distance(0, 1)
         # print(dir, 'dis:', dis)
         # if (dis > 6): #if distance greater than 5, then can not participate in neb calculation
-            # print('dis too long!!!!!!!!')
-            # return 1
+        # print('dis too long!!!!!!!!')
+        # return 1
         for i in range(2, len(struc.sites)):
             #print('%s:%s', i,struc.sites[i].frac_coords)
-            dis1 = struc.get_distance(i,0)
-            dis2 = struc.get_distance(i,1)
+            dis1 = struc.get_distance(i, 0)
+            dis2 = struc.get_distance(i, 1)
             #print('dis:',dis1,dis2)
             if dis1 < 0.5:
-                start=i
+                start = i
                 #print('dis1:',dis1)
             if dis2 < 0.5:
-                end=i
+                end = i
                 #print('dis2:',dis2)
         # print('start:%s', start)
         # print('end:%s',end)
@@ -109,7 +113,7 @@ class neb_packages(object):
             struc.sites.pop(start)
             if end != None:
                 if end > start:
-                    struc.sites.pop(end-1)
+                    struc.sites.pop(end - 1)
                 elif end < start:
                     struc.sites.pop(end)
         elif end != None:
@@ -121,4 +125,4 @@ class neb_packages(object):
         struc.sites.pop(0)
         if not os.path.exists(dir):
             os.mkdir(dir)
-        struc.to(filename=dir+'/POSCAR_base')
+        struc.to(filename=dir + '/POSCAR_base')
