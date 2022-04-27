@@ -55,10 +55,10 @@ class neb_packages(object):
             os.mkdir(self.dir + '/paths')
         num = 0
         for path in self.paths:
-            #处理坐标周期性问题
+            # 处理坐标周期性问题
             p = self.deal_path_periodicity(path)
             dir = self.dir + '/paths/path_' + str(num)
-            #dir=self.paths_dir+'/path_'+str(num)
+            # dir=self.paths_dir+'/path_'+str(num)
             if self.judge_site(p[0], p[-1], dir):
                 continue
             struc = Structure.from_file(self.dir + '/POSCAR')
@@ -69,12 +69,12 @@ class neb_packages(object):
             struc1 = Structure.from_file(dir + '/POSCAR_base')
             struc1.insert(
                 0, self.migration_ion,
-                path[0])  #at the first site insert the interval point
+                path[0])  # at the first site insert the interval point
             struc1.to(filename=dir + "/POSCAR1")
             struc2 = Structure.from_file(dir + '/POSCAR_base')
             struc2.insert(
                 0, self.migration_ion,
-                path[-1])  #at the first site insert the interval point
+                path[-1])  # at the first site insert the interval point
             struc2.to(filename=dir + "/POSCAR2")
             self.vi.set_incar({'images': len(p) - 2})
 
@@ -82,7 +82,7 @@ class neb_packages(object):
             num = num + 1
         zip_path(self.dir + '/paths', self.filename + '_neb_paths.zip')
 
-    #product the base poscar for insert site
+    # product the base poscar for insert site
     def judge_site(self, p1, p2, dir):
         start = None
         end = None
@@ -97,26 +97,26 @@ class neb_packages(object):
         # print('dis too long!!!!!!!!')
         # return 1
         for i in range(2, len(struc.sites)):
-            #print('%s:%s', i,struc.sites[i].frac_coords)
+            # print('%s:%s', i,struc.sites[i].frac_coords)
             dis1 = struc.get_distance(i, 0)
             dis2 = struc.get_distance(i, 1)
-            #print('dis:',dis1,dis2)
+            # print('dis:',dis1,dis2)
             if dis1 < 0.5:
                 start = i
-                #print('dis1:',dis1)
+                # print('dis1:',dis1)
             if dis2 < 0.5:
                 end = i
-                #print('dis2:',dis2)
+                # print('dis2:',dis2)
         # print('start:%s', start)
         # print('end:%s',end)
-        if start != None:
+        if start:
             struc.sites.pop(start)
-            if end != None:
+            if end:
                 if end > start:
                     struc.sites.pop(end - 1)
                 elif end < start:
                     struc.sites.pop(end)
-        elif end != None:
+        elif end:
             struc.sites.pop(end)
         else:
             print('no site')

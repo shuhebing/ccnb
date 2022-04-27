@@ -1,8 +1,8 @@
 # CCBN
 
 #### 介绍
-使用Python3编程语言开发了一个Python库CCBN来实现了几何分析和BVSE的融合方法的所有功能
 
+使用Python3编程语言开发了一个Python库CCBN来实现了几何分析和BVSE的融合方法的所有功能
 
 #### 软件架构
 
@@ -18,7 +18,7 @@
 
 该模块实现了3.2.1节所叙述的合并间隙簇算法。
 
-(4)	MigrationPath 
+(4)	MigrationPath
 
 该模块实现了3.1节所叙述的基于BVSE势场的寻找最小能量路径算法。
 
@@ -30,8 +30,8 @@
 
 该模块实现了3.4节叙述的自动化DFT-NEB计算算法，该模块可根据相邻晶格位之间的非等价路径计算算法的计算结果自动产生第一性原理DFT-NEB方法计算所需的POSCAR文件，以及自动生成其他的例如POTCAR、INCAR、KPOINTS等文件。
 
-
 #### 安装教程
+
   所需依赖包
   1.python 3.6
   2.ase 3.14.0
@@ -40,4 +40,3 @@
   5.numpy 1.18.1
   6.matplotlib 3.1.3
   7.cavd 0.2.8 The package can be accessed in the repository (https://gitee.com/shuhebing/cavd)
-

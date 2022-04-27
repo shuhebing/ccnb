@@ -176,7 +176,7 @@ def get_non_equivalent_paths_between_latticesite(filename_CIF,
     mn.cal_nonequl_paths()
     mn.save_data(filename_CIF)
     mn.showenergy(filename_CIF)
-    return mn.paths_position
+    return mn
     # return mn.paths_position，return mn.paths_position
 
 

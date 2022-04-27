@@ -32,14 +32,19 @@ class MigrationPath(object):
         self._endpoints = endpoints
         self._phase = phases  # 例如[[0,0,0],[0,-1,0]]
         self._countimages = countimages
-        self._path = []  #路径上每点的坐标
-        self._path_energy = []  #路径上每点的能量
-        self._max_energy = None  #最高点的能量
-        self._max_position = None  #最高点的位置
-        self._min_energy = None  #最低点的能量
+        # 路径上每点的坐标
+        self._path = []
+        # 路径上每点的能量
+        self._path_energy = []
+        # 最高点的能量
+        self._max_energy = None
+        self._max_position = None  # 最高点的位置
+        self._min_energy = None  # 最低点的能量
         self._barrier = None  # 最高点的能量-最低点的能量
-        self.cal_path()  #计算路径
-        self.cal_energy()  #计算路径上每点的能量
+        self._energy_function = None  # 能量计算插值函数
+        self.__set_energy_function()
+        self.cal_path()  # 计算路径
+        self.cal_energy()  # 计算路径上每点的能量
 
     @property
     def path(self):
@@ -90,30 +95,15 @@ class MigrationPath(object):
         Calculate the MEP between endpoints
         :return: Two dimensional array，every row is the coordinate of each image on the MEP
         """
+        energy_shape = np.array(self._energy.shape)
         for i in range(len(self._endpoints) - 1):
             start_f = [j for j in self._endpoints[i]]
-            for j in range(len(start_f)):
-                if start_f[j] > 1:
-                    start_f[j] -= 1
-                if start_f[j] < 0.0:
-                    start_f[j] += 1
+            start_f = np.mod(start_f, 1)
             end_f = [j for j in self._endpoints[i + 1]]
-            for j in range(len(end_f)):
-                if end_f[j] > 1:
-                    end_f[j] -= 1
-                if end_f[j] < 0.0:
-                    end_f[j] += 1
+            end_f = np.mod(end_f, 1)
             if operator.eq(self._phase[i], [0, 0, 0]):
-                start = np.array([
-                    start_f[0] * (self._energy.shape[0] - 1),
-                    start_f[1] * (self._energy.shape[1] - 1),
-                    start_f[2] * (self._energy.shape[2] - 1)
-                ])
-                end = np.array([
-                    end_f[0] * (self._energy.shape[0] - 1),
-                    end_f[1] * (self._energy.shape[1] - 1),
-                    end_f[2] * (self._energy.shape[2] - 1)
-                ])
+                start = start_f * (energy_shape - 1)
+                end = end_f * (energy_shape - 1)
                 self._countimages = max(
                     4,
                     int(
@@ -135,14 +125,12 @@ class MigrationPath(object):
                     max_iter=10000,
                     max_tol=5e-6)
                 if len(temp_path) > 3:
-                    for p1 in temp_path:
-                        p1[0] = round(p1[0] / (self._energy.shape[0] - 1), 4)
-                        p1[1] = round(p1[1] / (self._energy.shape[1] - 1), 4)
-                        p1[2] = round(p1[2] / (self._energy.shape[2] - 1), 4)
-                if i == 0:
-                    self._path = copy.deepcopy(temp_path)
-                else:
+                    temp_path = np.round(temp_path / (energy_shape - 1), 4)
+                    temp_path = np.mod(temp_path, 1.0)
+                if len(self._path):
                     self._path = np.append(self._path, temp_path[1:], axis=0)
+                else:
+                    self._path = copy.deepcopy(temp_path)
             else:
                 expan_energy2 = np.concatenate(
                     (self._energy, self._energy, self._energy), axis=0)
@@ -157,14 +145,8 @@ class MigrationPath(object):
                     start_f[2] * (self._energy.shape[2] - 1) +
                     self._energy.shape[2]
                 ])
-                end = np.array([
-                    end_f[0] * (self._energy.shape[0] - 1) +
-                    (1 + self._phase[i][0]) * self._energy.shape[0],
-                    end_f[1] * (self._energy.shape[1] - 1) +
-                    (1 + self._phase[i][1]) * self._energy.shape[1],
-                    end_f[2] * (self._energy.shape[2] - 1) +
-                    (1 + self._phase[i][2]) * self._energy.shape[2]
-                ])
+                end = end_f * (energy_shape - 1) + (
+                    1 + np.array(self._phase[i])) * energy_shape
                 self._countimages = max(
                     4,
                     int(
@@ -186,17 +168,13 @@ class MigrationPath(object):
                     max_iter=10000,
                     max_tol=5e-6)
                 if len(temp_path) > 3:
-                    for p1 in temp_path:
-                        p1[0] = round((p1[0] - self._energy.shape[0]) /
-                                      (self._energy.shape[0] - 1), 4)
-                        p1[1] = round((p1[1] - self._energy.shape[1]) /
-                                      (self._energy.shape[1] - 1), 4)
-                        p1[2] = round((p1[2] - self._energy.shape[2]) /
-                                      (self._energy.shape[2] - 1), 4)
-                if i == 0:
-                    self._path = copy.deepcopy(temp_path)
-                else:
+                    temp_path = np.round(
+                        (temp_path - energy_shape) / (energy_shape - 1), 4)
+                    temp_path = np.mod(temp_path, 1.0)
+                if len(self._path):
                     self._path = np.append(self._path, temp_path[1:], axis=0)
+                else:
+                    self._path = copy.deepcopy(temp_path)
 
     @staticmethod
     def pathfind(start,
@@ -285,22 +263,20 @@ class MigrationPath(object):
             # print ("Step {} - ds = {}".format(step, tol))
         return s
 
+    def __set_energy_function(self):
+        x = np.linspace(0, 1, self._energy.shape[0])
+        y = np.linspace(0, 1, self._energy.shape[1])
+        z = np.linspace(0, 1, self._energy.shape[2])
+        self._energy_function = RegularGridInterpolator((x, y, z),
+                                                        self._energy)
+
     def cal_point_energy(self, point):
         """
         Calculate the BVSE energy according to the discrete grid coordinates of the site point
         :param point: array，the discrete grid coordinates of the site point
         :return: float，BVSE energy
         """
-        x = np.linspace(0, 1, self._energy.shape[0])
-        y = np.linspace(0, 1, self._energy.shape[1])
-        z = np.linspace(0, 1, self._energy.shape[2])
-        interpolating_function = RegularGridInterpolator((x, y, z),
-                                                         self._energy)
-        point = [math.modf(i)[0] for i in point]
-        for i in range(len(point)):
-            if point[i] < 0.0:
-                point[i] += 1
-        return interpolating_function(np.array(point))[0]
+        return self._energy_function(np.array(np.mod(point, 1.0)))[0]
 
     def get_dis(self, p1, p2):
         """
@@ -365,17 +341,18 @@ class MigrationNetwork(object):
         """
         Calculate the transport network,analysis transport pathways
         """
-        self._moveion = moveion  #迁移离子
+        self._moveion = moveion  # 迁移离子
         self._voids = {}  # CAVD计算的所有间隙点
         self._channels = {}  # CAVD计算的所有通道段
         self._energy = energy  # BVSE三维势场
-        self._struc = struc  #Pymatgen读取的结构
+        self._struc = struc  # Pymatgen读取的结构
         self._nonequalchannels = {}  # 以间隙为起始点的所有非等价路径
         self._mignet = None  # 间隙网络图 networkx
         self._nonequl_paths = {}  # 以晶格位为起始点的所有非等价路径
-        self._iscalnonequalchannels = iscalnonequalchannels  # true、false 用于判断是否计算以间隙为起始点的所有非等价路径
-        self._energythreshold = energythreshold  #用于筛选间隙和通道段的阈值
-        if ismergecluster:  #选择是否合并间隙簇
+        # true、false 用于判断是否计算以间隙为起始点的所有非等价路径
+        self._iscalnonequalchannels = iscalnonequalchannels
+        self._energythreshold = energythreshold  # 用于筛选间隙和通道段的阈值
+        if ismergecluster:  # 选择是否合并间隙簇
             mergevoid = mc.MergeCluster(voids_dict,
                                         channels_dict,
                                         self._struc,
@@ -410,7 +387,7 @@ class MigrationNetwork(object):
         for channel_id, channel in self._channels.items():  # 计算每一条通道段的长度
             channel.dist = self.get_dis(self._voids[channel.start].coord,
                                         self._voids[channel.end].coord)
-        if self._iscalnonequalchannels:  #是否对每一条间隙之间的通道段计算BVSE MEP
+        if self._iscalnonequalchannels:  # 是否对每一条间隙之间的通道段计算BVSE MEP
             self.cal_nonequal_mep_between_voids()
         else:
             i = 0
@@ -463,7 +440,7 @@ class MigrationNetwork(object):
                 }
 
     def cal_nonequal_mep_between_voids(self):
-        #对每一条间隙之间的通道段计算BVSE MEP
+        # 对每一条间隙之间的通道段计算BVSE MEP
         i = 0
         for channel_id, channel in self._channels.items():
             if self._voids[channel.start].label < self._voids[
@@ -526,10 +503,7 @@ class MigrationNetwork(object):
         z = np.linspace(0, 1, self._energy.shape[2])
         interpolating_function = RegularGridInterpolator((x, y, z),
                                                          self._energy)
-        point = [math.modf(i)[0] for i in point]
-        for i in range(len(point)):
-            if point[i] < 0.0:
-                point[i] += 1
+        point = np.mod(point, 1.0)
         return interpolating_function(np.array(point))[0]
 
     def get_dis(self, p1, p2):
@@ -540,16 +514,21 @@ class MigrationNetwork(object):
 
     def cal_noneqpaths_cavd(self):
         """
-        calculate the label of each transport pathway between mobile ion lattice site
+        calculate the label of each transport pathway
+        between mobile ion lattice site
         """
-        labels_positions = []  #保存所有晶格位的类型  比如 Li1,Li2，Li3
-        positions_moveion = []  #保存所有晶格位的在间隙网络中的编号，label，坐标
-        positions_pair = {
-        }  # 字典，对所有的晶格位两两配对 key是晶格位的类型  比如 （Li1,Li2） value是在间隙网络中的编号 比如（5，10）
+        # 保存所有晶格位的类型  比如 Li1,Li2，Li3
+        labels_positions = []
+        # 保存所有晶格位在间隙网络中的编号，label，坐标
+        positions_moveion = []
+        # 字典，对所有的晶格位两两配对 key是晶格位的类型
+        # 比如 （Li1,Li2） value是在间隙网络中的编号 比如（5，10）
+        positions_pair = {}
         a = SpacegroupAnalyzer(self._struc, symprec=0.1)
         symm_structure = a.get_symmetrized_structure()
-        for i, sites in enumerate(
-                symm_structure.equivalent_sites):  # 这个循环计算positions_moveion
+        # 这个循环计算positions_moveion
+        # 晶格位在间隙网络中的编号，label，坐标
+        for i, sites in enumerate(symm_structure.equivalent_sites):
             for site in sites:
                 if site.specie.symbol == self._moveion:
                     temp_position = {}
@@ -568,7 +547,8 @@ class MigrationNetwork(object):
                     if temp_position['label'] not in labels_positions:
                         labels_positions.append(temp_position['label'])
                     positions_moveion.append(temp_position)
-        for i in range(len(positions_moveion) - 1):  # 这个循环计算positions_pair
+        # 这个循环计算positions_pair
+        for i in range(len(positions_moveion) - 1):
             for j in range(i + 1, len(positions_moveion)):
                 if positions_moveion[i]['label'] <= positions_moveion[j][
                         'label']:
@@ -599,9 +579,11 @@ class MigrationNetwork(object):
                         nx.shortest_path(self._mignet,
                                          source=position_pair[0],
                                          target=position_pair[1]))
-                # 计算在间隙网络中的最短路径，比如Li-Li2 结果为[1,5,7,9,2] 每一个数字表示间隙网络中的编号
+                # 计算在间隙网络中的最短路径，
+                # 比如Li-Li2 结果为[1,5,7,9,2] 每一个数字表示间隙网络中的编号
                 except nx.NetworkXNoPath:
-                    voids_path = []  #如果没有路径即为空，不考虑
+                    # 如果没有路径即为空，不考虑
+                    voids_path = []
                 if 0 < len(voids_path) < 7:
                     temppath = {
                         'phase_path': [0, 0, 0],
@@ -611,9 +593,8 @@ class MigrationNetwork(object):
                         'pair_label': pair_label
                     }
                     labels_path = []  # 在该晶格位之间的每一通道段的label
-                    for i in range(
-                            len(voids_path) - 1
-                    ):  # phases_path_segment表示每一段的label，phase_path表示整条路径的label
+                    for i in range(len(voids_path) - 1):
+                        # phases_path_segment表示每一段的label，phase_path表示整条路径的label
                         labels_path.append(self._mignet[voids_path[i]][
                             voids_path[i + 1]]['label'])
                         temppath['phases_path_segment'].append(self._mignet[
@@ -633,19 +614,23 @@ class MigrationNetwork(object):
                         if lab not in labels_positions:
                             voidlabels_path.append(lab)
                         else:
-                            tag0 = False  #如果是就不计算
+                            # 如果是就不计算
+                            tag0 = False
                             break
                     voidlabels_path.append(
                         self._mignet.node[voids_path[-1]]["label"])
-                    temppath[
-                        'voidlabels_path'] = voidlabels_path  # 路径上每一间隙点的label
-                    temppath['voidid_path'] = voids_path  # 路径上每一间隙点的编号
+                    # 路径上每一间隙点的label
+                    temppath['voidlabels_path'] = voidlabels_path
+                    # 路径上每一间隙点的编号
+                    temppath['voidid_path'] = voids_path
+                    # 路径上每一间隙点的坐标
                     temppath['voidcoord_path'] = [
                         self._voids[id].coord for id in voids_path
-                    ]  #路径上每一间隙点的坐标
+                    ]
                     temppath['barrier_path'] = None
                     if tag0 and len(labels_path) > 0:
-                        if labels_path[0] < labels_path[-1]:  #对起始点排序，编号小的在前，
+                        # 对起始点排序，编号小的在前，
+                        if labels_path[0] < labels_path[-1]:
                             key_path = tuple(labels_path)
                         else:
                             key_path = tuple(labels_path[::-1])
@@ -653,12 +638,13 @@ class MigrationNetwork(object):
                         ):  # 判断是否在非等价路径集合里
                             self._nonequl_paths[key_path] = temppath
                         else:
-                            #和他同一label的路径
+                            # 和他同一label的路径
                             if operator.eq(temppath['phase_path'],
                                            [0, 0, 0]) and not (operator.eq(
                                                self._nonequl_paths[key_path]
                                                ['phase_path'], [0, 0, 0])):
-                                #如果这条路径有和他同一label的路径，但是这条和他同一label的路径是跨包的，这条路径不跨包，就用它代替，尽可能保证选出的路径是不跨包的
+                                # 如果这条路径有和他同一label的路径，但是这条和他同一label的路径是跨包的，
+                                # 这条路径不跨包，就用它代替，尽可能保证选出的路径是不跨包的
                                 self._nonequl_paths[tuple(
                                     labels_path)] = temppath
 
@@ -698,6 +684,7 @@ class MigrationNetwork(object):
                             str(energys[j][1]) + '\n ')
 
     def showenergy(self, filename):
+        index = 0
         for nonqul_id, path in self._nonequl_paths.items():
             if len(path['points_path']) > 0:
                 xcoords = [
@@ -708,18 +695,22 @@ class MigrationNetwork(object):
                     path['energys_path'][j][1]
                     for j in range(len(path['energys_path']))
                 ]
-                ycoords = [y - min(ycoords) for y in ycoords]
-                poly = np.polyfit(xcoords, ycoords, deg=7)
+                # ycoords = [y - min(ycoords) for y in ycoords]
+                poly = np.polyfit(xcoords, ycoords, deg=9)
                 z = np.polyval(poly, xcoords)
                 plt.figure(figsize=(8, 6))
                 plt.plot(xcoords, z, linewidth=2, color="black")
                 plt.xticks(fontsize=16)
                 plt.yticks(fontsize=16)
-                plt.scatter(xcoords, z, color='k', marker='o')
+                plt.scatter(xcoords, ycoords, color='k', marker='o')
                 plt.xlabel("Reaction Coordinate ", fontsize=18)
                 plt.ylabel("Energy", fontsize=18)
-                save_path = filename.split(".")[0] + '-'.join(
-                    [str(i) for i in nonqul_id]) + '.png'
+                save_path = filename.split(".")[0]+"_"+str(index) \
+                            + '_' + path['pair_label'][0] \
+                            + '-' + path['pair_label'][1] + '_'\
+                            + '-'.join([str(i) for i in nonqul_id]) \
+                            + '.svg'
+                index = index + 1
                 plt.savefig(save_path)
                 plt.show()
 

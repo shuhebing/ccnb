@@ -1,4 +1,3 @@
-from platform import python_version
 from setuptools import setup, find_packages
 
 
