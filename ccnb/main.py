@@ -9,23 +9,25 @@ from ccnb import get_bvse
 from ccnb import get_migration_networks_voids
 
 
-def find_voids(filename_CIF,
-               energythreshold,
-               moveion,
-               mergecluster=True,
-               clusterradii=0.75):
-    filename_CIF = Path('filename_CIF')
+def get_voids(filename_CIF,
+              energythreshold,
+              moveion,
+              mergecluster=True,
+              clusterradii=0.75):
+    filename_CIF = Path(filename_CIF)
     filename_CAVD = str(filename_CIF.parent.joinpath(
         filename_CIF.stem)) + ".net"
     filename_BVSE = str(filename_CIF.parent.joinpath(
         filename_CIF.stem)) + "_BVSE.npy"
-    if not Path(filename_CAVD).exist:
-        print('please cavd calculate first')
+    if not Path(filename_CAVD).exists():
+        print('{} file no exist,\n please cavd calculate first'.format(
+            filename_CAVD))
         return None
-    if not Path(filename_BVSE).exist:
-        print('please bvse calculate first')
+    if not Path(filename_BVSE).exists():
+        print('{} file no exist,\n please bvse calculate first'.format(
+            filename_BVSE))
         return None
-    mn = get_migration_networks_voids(filename_CIF,
+    mn = get_migration_networks_voids(str(filename_CIF),
                                       filename_BVSE,
                                       filename_CAVD,
                                       energythreshold,
@@ -129,12 +131,15 @@ def main():
                            resolution=args.resolution)
         print(barrier)
     if args.cal_type == 'find_voids':
-        mn = find_voids(filename_CIF=args.struct_file,
-                        energythreshold=args.energy,
-                        moveion=args.ion,
-                        mergecluster=args.cluster,
-                        clusterradii=args.cluster_radii)
-        print(mn)
+        mn = get_voids(filename_CIF=args.struct_file,
+                       energythreshold=args.energy,
+                       moveion=args.ion,
+                       mergecluster=args.cluster,
+                       clusterradii=args.cluster_radii)
+        if mn:
+            print(mn)
+        else:
+            print('Calculation failed!!!')
 
 
 if __name__ == "__main__":

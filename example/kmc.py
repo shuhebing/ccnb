@@ -4,7 +4,8 @@ from ccnb.bvse_cavd import MigrationNetwork
 from ccnb.mergecluster import Void, Channel
 from ccnb.neb_packages import neb_packages
 from ccnb.bvse import bv_calculation
-from ccnb import load_struc,load_bvse_from_npy,load_voids_channels_from_file,get_bvse
+from ccnb import (load_struc,load_bvse_from_npy,
+          load_voids_channels_from_file,get_bvse)
 from ccnb.cavd_channel import cal_channel_cavd
 from ccnb.MigrationNetworkLatticeSites import MigrationNetworkLatticeSites
 

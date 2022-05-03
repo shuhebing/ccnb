@@ -32,11 +32,20 @@
 
 #### 安装教程
 
-  所需依赖包
-  1.python 3.6
-  2.ase 3.14.0
-  3.pymatgen 2019.1.24
-  4.scipy 1.2.1
-  5.numpy 1.18.1
-  6.matplotlib 3.1.3
-  7.cavd 0.2.8 The package can be accessed in the repository (https://gitee.com/shuhebing/cavd)
+  依赖包信息保放在requirements.txt文件中.
+
+  安装命令：
+
+```bash
+pip intall ccnb
+```
+
+#### 使用方法
+
+安装完成以后，执行ccnb -h 命令查询使用方法。
+
+如果您在论文中使用 ccnb 计算的结果。 请确认代码的使用并引用以下论文：
+
+> 1. He, B.; Mi, P.; Ye, A.; Chi, S.; Jiao, Y.; Zhang, L.; Pu, B.; Zou, Z.; Zhang, W.; Avdeev, M.; Adams, S.; Zhao, J.; Shi, S. A Highly Efficient and Informative Method to Identify Ion Transport Networks in Fast Ion Conductors.*Acta Materialia* **2021** ,  *203* , 116490. [https://doi.org/10.1016/j.actamat.2020.116490](https://doi.org/10.1016/j.actamat.2020.116490).
+> 2. He, B.; Ye, A.; Chi, S.; Mi, P.; Ran, Y.; Zhang, L.; Zou, X.; Pu, B.; Zhao, Q.; Zou, Z.; Wang, D.; Zhang, W.; Zhao, J.; Avdeev, M.; Shi, S. CAVD, towards Better Characterization of Void Space for Ionic Transport Analysis.*Sci Data* **2020** , *7* (1), 153. [https://doi.org/10.1038/s41597-020-0491-x](https://doi.org/10.1038/s41597-020-0491-x).
+> 3. He, B.; Chi, S.; Ye, A.; Mi, P.; Zhang, L.; Pu, B.; Zou, Z.; Ran, Y.; Zhao, Q.; Wang, D.; Zhang, W.; Zhao, J.; Adams, S.; Avdeev, M.; Shi, S. High-Throughput Screening Platform for Solid Electrolytes Combining Hierarchical Ion-Transport Prediction Algorithms.*Sci Data* **2020** , *7* (1), 151. [https://doi.org/10.1038/s41597-020-0474-y](https://doi.org/10.1038/s41597-020-0474-y).

@@ -1,24 +1,175 @@
-# coding=utf8
+# coding=utf-8
 '''
 Created on 
 @author: hebing
 '''
 import re
+from typing import List
 import numpy as np
-import ase.spacegroup as spg
+from ase.spacegroup.spacegroup import Spacegroup
+from ase.spacegroup.spacegroup import parse_sitesym, SpacegroupValueError
 from scipy.spatial.ckdtree import cKDTree
 
+# from pymatgen.core.periodic_table  import Element
 
-#from pymatgen.core.periodic_table  import Element
+
+class MySpacegroup(Spacegroup):
+
+    def __init__(self, spacegroup, setting=1, datafile=None):
+        super().__init__(spacegroup, setting=setting, datafile=datafile)
+
+    def equivalent_sites(self,
+                         scaled_positions,
+                         onduplicates='error',
+                         symprec=1e-3):
+        """Returns the scaled positions and all their equivalent sites.
+
+        Parameters:
+
+        scaled_positions: list | array
+            List of non-equivalent sites given in unit cell coordinates.
+        onduplicates : 'keep' | 'replace' | 'warn' | 'error'
+            Action if `scaled_positions` contain symmetry-equivalent
+            positions:
+
+            'keep'
+               ignore additional symmetry-equivalent positions
+            'replace'
+                replace
+            'warn'
+                like 'keep', but issue an UserWarning
+            'error'
+                raises a SpacegroupValueError
+
+        symprec: float
+            Minimum "distance" betweed two sites in scaled coordinates
+            before they are counted as the same site.
+
+        Returns:
+
+        sites: array
+            A NumPy array of equivalent sites.
+        kinds: list
+            A list of integer indices specifying which input site is
+            equivalent to the corresponding returned site.
+
+        Example:
+
+        >>> from ase.spacegroup import Spacegroup
+        >>> sg = Spacegroup(225)  # fcc
+        >>> sites, kinds = sg.equivalent_sites([[0, 0, 0], [0.5, 0.0, 0.0]])
+        >>> sites
+        array([[ 0. ,  0. ,  0. ],
+               [ 0. ,  0.5,  0.5],
+               [ 0.5,  0. ,  0.5],
+               [ 0.5,  0.5,  0. ],
+               [ 0.5,  0. ,  0. ],
+               [ 0. ,  0.5,  0. ],
+               [ 0. ,  0. ,  0.5],
+               [ 0.5,  0.5,  0.5]])
+        >>> kinds
+        [0, 0, 0, 0, 1, 1, 1, 1]
+        """
+        kinds = []
+        sites = []
+        scaled = np.array(scaled_positions, ndmin=2)
+        for kind, pos in enumerate(scaled):
+            for rot, trans in self.get_symop():
+                site = np.mod(np.dot(rot, pos) + trans, 1.)
+                if not sites:
+                    sites.append(site)
+                    kinds.append(kind)
+                    continue
+                t = site - sites
+                mask = np.all(
+                    (abs(t) < symprec) | (abs(abs(t) - 1.0) < symprec), axis=1)
+                if np.any(mask):
+                    ind = np.argwhere(mask)[0][0]
+                    if kinds[ind] == kind:
+                        pass
+                    elif onduplicates == 'keep':
+                        sites.append(site)
+                        kinds.append(kind)
+                    elif onduplicates == 'replace':
+                        kinds[ind] = kind
+                    elif onduplicates == 'warn':
+                        warnings.warn('scaled_positions %d and %d '
+                                      'are equivalent' % (kinds[ind], kind))
+                    elif onduplicates == 'error':
+                        raise SpacegroupValueError(
+                            'scaled_positions %d and %d are equivalent' %
+                            (kinds[ind], kind))
+                    else:
+                        raise SpacegroupValueError(
+                            'Argument "onduplicates" must be one of: '
+                            '"keep", "replace", "warn" or "error".')
+                else:
+                    sites.append(site)
+                    kinds.append(kind)
+        return np.array(sites), kinds
+
+
+def spacegroup_from_data(no=None,
+                         symbol=None,
+                         setting=None,
+                         centrosymmetric=None,
+                         scaled_primitive_cell=None,
+                         reciprocal_cell=None,
+                         subtrans=None,
+                         sitesym=None,
+                         rotations=None,
+                         translations=None,
+                         datafile=None):
+    """Manually create a new space group instance.  This might be
+    useful when reading crystal data with its own spacegroup
+    definitions."""
+    if no is not None and setting is not None:
+        spg = MySpacegroup(no, setting, datafile)
+    elif symbol is not None:
+        spg = MySpacegroup(symbol, setting, datafile)
+    else:
+        raise SpacegroupValueError('either *no* and *setting* '
+                                   'or *symbol* must be given')
+    if not isinstance(sitesym, list):
+        raise TypeError('sitesym must be a list')
+
+    have_sym = False
+    if centrosymmetric is not None:
+        spg._centrosymmetric = bool(centrosymmetric)
+    if scaled_primitive_cell is not None:
+        spg._scaled_primitive_cell = np.array(scaled_primitive_cell)
+    if reciprocal_cell is not None:
+        spg._reciprocal_cell = np.array(reciprocal_cell)
+    if subtrans is not None:
+        spg._subtrans = np.atleast_2d(subtrans)
+        spg._nsubtrans = spg._subtrans.shape[0]
+    if sitesym is not None:
+        spg._rotations, spg._translations = parse_sitesym(sitesym)
+        have_sym = True
+    if rotations is not None:
+        spg._rotations = np.atleast_3d(rotations)
+        have_sym = True
+    if translations is not None:
+        spg._translations = np.atleast_2d(translations)
+        have_sym = True
+    if have_sym:
+        if spg._rotations.shape[0] != spg._translations.shape[0]:
+            raise SpacegroupValueError('inconsistent number of rotations and '
+                                       'translations')
+        spg._nsymop = spg._rotations.shape[0]
+    return spg
+
+
 class Site(object):
     '''
-    
     '''
 
     def __init__(self, sitelabel=[], Pos=None, elementsoccupy=None):
         self._Id = 0
         self._SiteLabel = sitelabel
         self._SiteType = []
+        self.IronType = 0
+        self.radius = None
         self._FracPostion = Pos
         self._Elements_occupy = {}
         self._Elements_OxiValue = {}
@@ -41,13 +192,20 @@ class Site(object):
     def SetElementsOccupy(self, eleocu):
         for key in eleocu.keys():
             if key in self._Elements_occupy:
-                pass  #self._Elements_occupy[key]=self._Elements_occupy[key]+eleocu[key]
+                # self._Elements_occupy[key]=self._Elements_occupy[key]+eleocu[key]
+                pass
             else:
                 self._Elements_occupy[key] = eleocu[key]
 
     def SetElementsOxiValue(self, eleoxi):
         for key in eleoxi.keys():
             self._Elements_OxiValue[key] = eleoxi[key]
+            if eleoxi[key] < 0:
+                self.IronType = -1
+            elif eleoxi[key] > 0:
+                self.IronType = 1
+            else:
+                self.IronType = 0
 
     def GetElementsOxiValue(self):
         return self._Elements_OxiValue
@@ -71,14 +229,7 @@ class Site(object):
         return self._Elements_occupy.keys()
 
     def GetIronType(self):
-        for (key, value) in self._Elements_OxiValue.items():
-            if value < 0:
-                return -1
-            elif value > 0:
-                return 1
-            else:
-                return 0
-        return 0
+        return self.IronType
 
 
 class PeriodSite(Site):
@@ -202,8 +353,8 @@ class Structure(object):
         self.__alphabetagama = []
         self.__positions = []
         self._initsites = []
-        self._Sites = []
-        self._SuperCellusites = []
+        self._Sites: List[Site] = []
+        self._SuperCellusites: List[Site] = []
         self._SuperCellusitesFracPos = []
         self._SuperCellusitesCartPos = []
         self.__SuperCellusitesCellIndex = []
@@ -274,9 +425,9 @@ class Structure(object):
                             pos[0] + indexpos[i], pos[1] + indexpos[j],
                             pos[2] + indexpos[k]
                         ]
-                        self._SuperCellusitesFracPos.append(stepos.copy())
+                        self._SuperCellusitesFracPos.append(stepos)
                         cartpos = self.FracPosToCartPos(stepos)
-                        self._SuperCellusitesCartPos.append(cartpos.copy())
+                        self._SuperCellusitesCartPos.append(cartpos)
                         self._SuperCellusites.append(ste)
         self.__KDtree = cKDTree(self._SuperCellusitesCartPos)
 
@@ -287,9 +438,29 @@ class Structure(object):
         return self.__KDtree.query(centre, kn, p=2, n_jobs=-1)
 
     def FracPosToCartPos(self, FracPos):
-        #pos=self.__ABC[0]*FracPos[0]+self.__ABC[1]*FracPos[1]+self.__ABC[2]*FracPos[2]
+        # pos=self.__ABC[0]*FracPos[0]+self.__ABC[1]*FracPos[1]+self.__ABC[2]*FracPos[2]
         pos = np.dot(FracPos, self.__ABC)
         return pos
+
+    def AddBond(self,
+                beginsite,
+                endsite,
+                beginshiftpos=np.array([0, 0, 0]),
+                endshiftpos=np.array([0, 0, 0]),
+                typeid=None):
+        bond = Bond(beginsite, endsite)
+        bond.Positions = [
+            beginsite.GetPosition() + beginshiftpos,
+            endsite.GetPosition() + endshiftpos
+        ]
+        if typeid:
+            if not typeid in self._Bonds:
+                self._Bonds[typeid] = []
+            self._Bonds[typeid].append(bond)
+        else:
+            if not beginsite.GetSiteId() in self._Bonds:
+                self._Bonds[beginsite.GetSiteId()] = []
+            self._Bonds[beginsite.GetSiteId()].append(bond)
 
     def CreateBonds(self, r):
         self._Bonds.clear()
@@ -319,7 +490,7 @@ class Structure(object):
                     self._Polyhedras[ste.GetSiteId()] = polyhedra
 
     def CreateAllBonds(self):
-        self.CreateBonds(r=3)
+        self.CreateBonds(r=2.5)
 
     def SetSpaceGroupno(self, spacegroupid=1):
         self.__spacegroupno = spacegroupid
@@ -336,11 +507,57 @@ class Structure(object):
     def AddSite(self, site=None):
         self._initsites.append(site)
 
+    def AddUSite(self, site=None):
+        self._Sites.append(site)
+
+    def AddAtoms(self, sitelabel, sitetype, Pos, elementsoccupy, radius=None):
+        index = len(self._Sites)
+        site = Site(sitelabel, Pos, elementsoccupy)
+        site.SetSiteType(sitetype)
+        site.SetSiteId(index)
+        if not radius:
+            self.AddUSite(site)
+        else:
+            site.radius = radius
+            self.AddUSite(site)
+
     def GetSites(self):
         return self._initsites
 
     def GetUSites(self):
         return self._Sites
+
+    def GetASEAtoms(self, atoms=None):
+        self.Setabc(atoms.get_cell_lengths_and_angles()[0:3])
+        self.SetAlphaBetaGama(atoms.get_cell_lengths_and_angles()[3:6])
+        self.__ABC = atoms.cell
+        self.__positions = atoms.get_scaled_positions()
+        strlabel = {}
+        for index, ssite in enumerate(self.__positions):
+            s = atoms.get_chemical_symbols()[index]
+            if s in strlabel:
+                strlabel[s] = strlabel[s] + 1
+            else:
+                strlabel[s] = 0
+            m = re.search(r'([A-Z][a-z]?)', s)
+            symbol = m.group(0)
+            stelabel = symbol + str(strlabel[s])
+            eleoccupy = {symbol: 1.0}
+            self.AddSite(
+                Site(sitelabel=stelabel,
+                     sitetype=s,
+                     Pos=ssite,
+                     elementsoccupy=eleoccupy))
+            self.__sites[index].SetSiteId(index)
+        self.MergeDuplicateSite(0.001)
+        self.ExpandCell()
+
+    # self.CreateAllBonds()
+
+    def GetPoscarFile(self, filename=None):
+        self._filename = filename
+        atoms = ase.io.read(filename)
+        self.GetASEAtoms(atoms)
 
     def GetAseStructure(self, atoms=None):
         self.Setabc([
@@ -351,13 +568,13 @@ class Structure(object):
             atoms.info['_cell_angle_alpha'], atoms.info['_cell_angle_beta'],
             atoms.info['_cell_angle_gamma']
         ])
-        if '_symmetry_int_tables_number' in atoms.info:
-            self.SetSpaceGroupno(atoms.info['_symmetry_int_tables_number'])
-        elif '_space_group_it_number' in atoms.info:
-            self.SetSpaceGroupno(atoms.info['_space_group_it_number'])
-        else:
-            print('can not find group no')
-
+        # if '_symmetry_int_tables_number' in atoms.info:
+        #     self.SetSpaceGroupno(atoms.info['_symmetry_int_tables_number'])
+        # elif '_space_group_it_number' in atoms.info:
+        #     self.SetSpaceGroupno(atoms.info['_space_group_it_number'])
+        # else:
+        #     print('can not find group no')
+        #     return
         index = 0
         self.__ABC = atoms.cell
         postions = list(
@@ -372,6 +589,8 @@ class Structure(object):
             no = atoms.info['_space_group_it_number']
         elif '_symmetry_int_tables_number' in atoms.info:
             no = atoms.info['_symmetry_int_tables_number']
+        if no:
+            self.SetSpaceGroupno(no)
 
         symbolHM = None
         if '_space_group.Patterson_name_h-m' in atoms.info:
@@ -395,14 +614,13 @@ class Structure(object):
         spgroup = 1
         if sitesym is not None:
             subtrans = [(0.0, 0.0, 0.0)]
-            spgroup = spg.spacegroup.spacegroup_from_data(no=no,
-                                                          symbol=symbolHM,
-                                                          sitesym=sitesym,
-                                                          subtrans=subtrans)
-
-
-#        spgroup=spg.Spacegroup(self.GetSpaceGroupno())
-        kinds = []
+            spgroup = spacegroup_from_data(no=no,
+                                           symbol=symbolHM,
+                                           setting=1,
+                                           sitesym=sitesym,
+                                           subtrans=subtrans)
+        else:
+            spgroup = MySpacegroup(self.GetSpaceGroupno())
         ssites, kinds = spgroup.equivalent_sites(postions, onduplicates='keep')
         self.__positions = ssites
         if '_atom_type_oxidation_number' in atoms.info:
@@ -438,7 +656,7 @@ class Structure(object):
         for index, sitepos in enumerate(self.__positions):
             if not dupsites[index]:
                 self.__usitepos.append(self.__positions[index])
-                #_site=Site(sitelabel=self._initsites[index].GetSiteLabel(),Pos=sitepos,elementsoccupy=self._initsites[index].GetElementsOccupy())
+                # _site=Site(sitelabel=self._initsites[index].GetSiteLabel(),Pos=sitepos,elementsoccupy=self._initsites[index].GetElementsOccupy())
                 self._Sites.append(self._initsites[index])
                 sitelabels.append([self._initsites[index].GetSiteLabel()])
                 self._Sites[-1].SetSiteId(len(self._Sites) - 1)
