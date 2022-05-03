@@ -41,6 +41,15 @@ This module implements a FP-NEB automation calculation algorithm by utilizing th
 
  The dependency package information is kept in the requirements.txt file After installing these dependency packages, you can use it by downloading the source code.For specific usage, you can refer to the examples in the example folder.
 
+#### Installation Tutorial
+
+   Dependency package information is kept in the requirements.txt file.
+
+   Installation command:
+
+```bash
+pip install ccnb
+````
 #### Instructions
 
 After the installation is complete, execute the   **ccnb -h**  command to query the usage.
