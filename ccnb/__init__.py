@@ -4,6 +4,7 @@ from struct import unpack
 from monty.io import zopen
 import numpy as np
 import pymatgen
+from pymatgen.core import Structure
 from pymatgen.core import SETTINGS
 from cavd.local_environment import CifParser_new
 from ccnb.bvse_cavd import MigrationNetwork
@@ -11,6 +12,21 @@ from ccnb.mergecluster import Void, Channel
 from ccnb.neb_packages import neb_packages
 from ccnb.bvse import bv_calculation
 from ccnb.cavd_channel import cal_channel_cavd
+from rich.progress import Progress
+
+
+class Progressbar:
+
+    def __init__(self):
+        self.progress = Progress()
+        self.task = None
+
+    def set_task(self, workstr: str, total):
+        self.task = self.progress.add_task(workstr, total)
+
+    def updatetask(self, i: int):
+        self.progress.update(self.task, advance=0.9)
+        print('bvse compute have finished {0:.2f}%'.format(i))
 
 
 def get_channel_cavd(filename,
@@ -24,9 +40,12 @@ def get_channel_cavd(filename,
     calculate interstitial network and Voronoi network by CAVD
     :param filename: CIF filename
     :param migrant: mobile ion
-    :param lower: the lower threshold  of ion migration to select the suitable interstitial network
-    :param upper: the upper threshold  of ion migration to select the suitable interstitial network
-    :return: RT value, NET file for saving interstitial network and Voronoi network
+    :param lower: the lower threshold  of ion migration
+                  to select the suitable interstitial network
+    :param upper: the upper threshold  of ion migration
+                  to select the suitable interstitial network
+    :return: RT value, NET file for saving
+             interstitial network and Voronoi network
     """
     conn_val = cal_channel_cavd(filename,
                                 migrant,
@@ -38,19 +57,27 @@ def get_channel_cavd(filename,
     return conn_val
 
 
-def get_bvse(filename_cif, moveion='Li', valenceofmoveion=1, resolution=0.1):
+def get_bvse(filename_cif,
+             moveion='Li',
+             valenceofmoveion=1,
+             resolution=0.1,
+             progress=None):
     """
     calculate BVSE landscape
     :param filename_cif: cif filename
     :param moveion:  move ion
     :param valenceofmoveion: valence of move ion
     :param resolution: resolution for calculating BVSE landsacpe
-    :return: migration energy barrier, numpy Binary. Pgrid file for saving and visualization BVSE landscape
+    :return: migration energy barrier, numpy Binary.
+             Pgrid file for saving and visualization BVSE landscape
     """
+    prgbar = Progressbar()
+    prgbar.set_task('bvse computing progress...', total=100)
     barrier = bv_calculation(filename_cif,
                              moveion=moveion,
                              valenceofmoveion=valenceofmoveion,
-                             resolution=resolution)
+                             resolution=resolution,
+                             progress=prgbar.updatetask)
     return barrier
 
 
@@ -178,6 +205,35 @@ def get_non_equivalent_paths_between_latticesite(filename_CIF,
     mn.showenergy(filename_CIF)
     return mn
     # return mn.paths_position，return mn.paths_position
+
+
+def get_migration_networks_voids(filename_CIF,
+                                 filename_BVSE,
+                                 filename_CAVD,
+                                 energythreshold,
+                                 moveion='Li',
+                                 mergecluster=True,
+                                 clusterradii=0.75):
+    """
+    获得迁移网络中的间隙点
+    """
+    voids, channels = load_voids_channels_from_file(filename_CAVD)
+    struc = Structure.from_file(filename_CIF)
+    energy = load_bvse_from_npy(filename_BVSE)
+    mn = MigrationNetwork(struc,
+                          energy,
+                          voids,
+                          channels,
+                          filename_CIF,
+                          moveion=moveion,
+                          ismergecluster=mergecluster,
+                          energythreshold=energythreshold,
+                          iscalnonequalchannels=False,
+                          clusterradii=clusterradii)
+    for void in mn._voids.values():
+        struc.insert(0, 'He', void.coord)
+    struc.to(fmt='cif', filename=filename_CIF + '_voids.cif')
+    return mn
 
 
 def get_non_equivalent_paths_between_voids(filename_CIF,

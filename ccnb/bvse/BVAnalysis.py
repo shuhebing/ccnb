@@ -404,7 +404,7 @@ class BVAnalysis(object):
                                         (r, b) = self._BVparam[key][0]
                                         Rcutoff = 10.0
                                         if distance[j][k][dindex] <= Rcutoff:
-                                            #bv=np.exp((r0-distance[k][j][i][dindex])*alpha)
+                                            # bv=np.exp((r0-distance[k][j][i][dindex])*alpha)
                                             bvs = np.exp(
                                                 (r - distance[j][k][dindex]) /
                                                 b)

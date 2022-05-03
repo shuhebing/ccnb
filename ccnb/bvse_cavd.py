@@ -1,6 +1,5 @@
 import operator
 import copy
-import math
 import numpy as np
 import numpy.linalg as la
 import networkx as nx
@@ -337,7 +336,9 @@ class MigrationNetwork(object):
                  moveion='Li',
                  ismergecluster=False,
                  energythreshold=None,
-                 iscalnonequalchannels=True):
+                 iscalnonequalchannels=True,
+                 clusterradii=0.75,
+                 void_radii_threshold=[0.5, 1.0]):
         """
         Calculate the transport network,analysis transport pathways
         """
@@ -351,14 +352,16 @@ class MigrationNetwork(object):
         self._nonequl_paths = {}  # 以晶格位为起始点的所有非等价路径
         # true、false 用于判断是否计算以间隙为起始点的所有非等价路径
         self._iscalnonequalchannels = iscalnonequalchannels
-        self._energythreshold = energythreshold  # 用于筛选间隙和通道段的阈值
+        # 用于筛选间隙和通道段的阈值
+        if energythreshold:
+            self._energythreshold = energythreshold + np.min(energy)
         if ismergecluster:  # 选择是否合并间隙簇
             mergevoid = mc.MergeCluster(voids_dict,
                                         channels_dict,
                                         self._struc,
                                         self._energy,
                                         filename_CIF,
-                                        clusterradii=0.5)  # 调用合并间隙簇类
+                                        clusterradii=clusterradii)  # 调用合并间隙簇类
             mergevoid.to_net(filename_CIF)
             for void in mergevoid.mergedvoids:
                 self._voids[void.id] = void
@@ -408,7 +411,6 @@ class MigrationNetwork(object):
                     i += 1
                 else:
                     channel.label = self._nonequalchannels[key]["label"]
-
         if self._energythreshold:
             highenergy_voids = [
                 void_id for void_id, void in self._voids.items()

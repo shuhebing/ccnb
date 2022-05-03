@@ -6,6 +6,33 @@ import argparse
 from pathlib import Path
 from ccnb import cal_channel_cavd
 from ccnb import get_bvse
+from ccnb import get_migration_networks_voids
+
+
+def find_voids(filename_CIF,
+               energythreshold,
+               moveion,
+               mergecluster=True,
+               clusterradii=0.75):
+    filename_CIF = Path('filename_CIF')
+    filename_CAVD = str(filename_CIF.parent.joinpath(
+        filename_CIF.stem)) + ".net"
+    filename_BVSE = str(filename_CIF.parent.joinpath(
+        filename_CIF.stem)) + "_BVSE.npy"
+    if not Path(filename_CAVD).exist:
+        print('please cavd calculate first')
+        return None
+    if not Path(filename_BVSE).exist:
+        print('please bvse calculate first')
+        return None
+    mn = get_migration_networks_voids(filename_CIF,
+                                      filename_BVSE,
+                                      filename_CAVD,
+                                      energythreshold,
+                                      moveion=moveion,
+                                      mergecluster=mergecluster,
+                                      clusterradii=clusterradii)
+    return mn
 
 
 def main():
@@ -16,7 +43,7 @@ def main():
                         type=str,
                         required=True,
                         help='结构文件名(cif格式)')
-    parser.add_argument('-mi',
+    parser.add_argument('-i',
                         '--move_ion',
                         dest='ion',
                         type=str,
@@ -28,7 +55,7 @@ def main():
                         dest='cal_type',
                         type=str,
                         default='bvse',
-                        choices=['bvse', 'cavd', 'all'],
+                        choices=['bvse', 'cavd', 'find_voids'],
                         required=True,
                         help='计算类型选择')
     bvse = parser.add_argument_group('bvse')
@@ -67,6 +94,24 @@ def main():
                       type=float,
                       default=1.0,
                       help='通道大小上限值(单位埃)')
+
+    find_voids = parser.add_argument_group('find_voids')
+    find_voids.add_argument('--energy',
+                            dest='energy',
+                            type=float,
+                            default=0.5,
+                            help='能量筛选上限')
+    find_voids.add_argument('--cluster',
+                            dest='cluster',
+                            type=bool,
+                            default=True,
+                            help='是否进行合并团簇间隙点')
+    find_voids.add_argument('-cr',
+                            '--cluster_radii',
+                            dest='cluster_radii',
+                            type=float,
+                            default=0.8,
+                            help='合并团簇范围半径')
     args = parser.parse_args()
     if args.cal_type == 'cavd':
         RT = cal_channel_cavd(args.struct_file,
@@ -83,6 +128,13 @@ def main():
                            valenceofmoveion=args.valence,
                            resolution=args.resolution)
         print(barrier)
+    if args.cal_type == 'find_voids':
+        mn = find_voids(filename_CIF=args.struct_file,
+                        energythreshold=args.energy,
+                        moveion=args.ion,
+                        mergecluster=args.cluster,
+                        clusterradii=args.cluster_radii)
+        print(mn)
 
 
 if __name__ == "__main__":

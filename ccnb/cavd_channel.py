@@ -6,7 +6,7 @@ from cavd.channel import Channel
 from cavd.netstorage import AtomNetwork, connection_values_list
 from cavd.local_environment import CifParser_new, LocalEnvirCom
 from cavd.get_Symmetry import get_labeled_vornet
-
+from pymatgen.core. structure import Structure
 
 def cal_channel_cavd(filename,
                      migrant,
@@ -19,8 +19,10 @@ def cal_channel_cavd(filename,
         input_string = f.read()
     parser = CifParser_new.from_string(input_string)
     stru = parser.get_structures(primitive=False)[0]
-    species = [str(sp).replace("Specie ", "") for sp in stru.species]
-    elements = [re.sub('[^a-zA-Z]', '', sp) for sp in species]
+    #stru = Structure.from_file(filename)
+    #species = [str(sp).replace("Specie ", "") for sp in stru.species]
+    #elements = [re.sub('[^a-zA-Z]', '', sp) for sp in species]
+    elements = stru.symbol_set
     #symm_number, symm_sybol = parser.get_symme()
     sitesym = parser.get_sym_opt()
     if migrant not in elements:
