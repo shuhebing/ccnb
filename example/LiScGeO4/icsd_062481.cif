@@ -1,0 +1,79 @@
+data_62481-ICSD
+#?2010 by Fachinformationszentrum Karlsruhe, and the U.S. Secretary of 
+#Commerce on behalf of the United States.  All rights reserved.
+_database_code_ICSD                62481
+_audit_creation_date               1988/12/19
+_chemical_name_systematic
+;
+Lithium Scandium Germanium Tetraoxide
+;
+_chemical_formula_structural       'Li Sc Ge O4'
+_chemical_formula_sum              'Ge1 Li1 O4 Sc1'
+_publ_section_title
+;
+Structure of the Olivine-type Li, Sc-germanate LiScGeO4
+;
+loop_
+_citation_id
+_citation_journal_abbrev
+_citation_year
+_citation_journal_volume
+_citation_page_first
+_citation_page_last
+_citation_journal_id_ASTM
+primary 'Zhurnal Strukturnoi Khimii (Issue-No. from 1981)'
+ 1986 27 167 168 ZSTKAI
+_publ_author_name
+;
+Genkina, E.A.;Timofeeva, V.A.;Bykov, A.B.
+;
+_cell_length_a                     10.673(2)
+_cell_length_b                     5.9926(11)
+_cell_length_c                     4.9667(5)
+_cell_angle_alpha                  90.
+_cell_angle_beta                   90.
+_cell_angle_gamma                  90.
+_cell_volume                       317.67
+_cell_formula_units_Z              4
+_symmetry_space_group_name_H-M     'P n m a'
+_symmetry_Int_Tables_number        62
+_refine_ls_R_factor_all            .062
+loop_
+_symmetry_equiv_pos_site_id
+_symmetry_equiv_pos_as_xyz
+  1	'x+.5, y, -z+.5'
+  2	'x, -y+.5, z'
+  3	'-x+.5, y+.5, z+.5'
+  4	'-x, -y, -z'
+  5	'-x+.5, -y, z+.5'
+  6	'-x, y+.5, -z'
+  7	'x+.5, -y+.5, -z+.5'
+  8	'x, y, z'
+loop_
+_atom_type_symbol
+_atom_type_oxidation_number
+Ge4+	4
+Li1+	1
+O2-	-2
+Sc3+	3
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_symmetry_multiplicity
+_atom_site_Wyckoff_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_attached_hydrogens
+_atom_site_B_iso_or_equiv
+Li1 Li1+ 4 a 0 0 0 1. 0 1.72 
+Sc1 Sc3+ 4 c 0.2715(1) 0.25 0.0029(2) 1. 0 0.45 
+Ge1 Ge4+ 4 c 0.0901(1) 0.25 0.4474(1) 1. 0 0.45 
+O1 O2- 4 c 0.0973(5) 0.25 0.7958(8) 1. 0 0.83 
+O2 O2- 4 c 0.4426(5) 0.25 0.1988(9) 1. 0 1.03 
+O3 O2- 8 d 0.1730(4) 0.0300(6) 0.2860(7) 1. 0 0.83 
+
+#End of data_62481-ICSD
+
+

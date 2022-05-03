@@ -1,0 +1,13 @@
+Lattice_basis_vector 
+3.870300 0.000000 0.000000
+0.000000 3.870300 0.000000
+0.000000 0.000000 3.870300
+
+Site_number 8
+Cartesian_coordinates 2.4424921458e-15 0.0 2.6645351271e-15
+Normalized_coordinates 6.31086e-16 0.0 6.88457e-16
+Neighbor_sites
+Neighbor_sites_phase
+Barrier
+Site_types Li1
+
